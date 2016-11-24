@@ -47,7 +47,7 @@ type ClientSession interface {
 	ProcessChallengeMessage(*ChallengeMessage) error
 	GenerateAuthenticateMessage() (*AuthenticateMessage, error)
 
-	Seal(message []byte) ([]byte, error)
+	Seal(message []byte) ([]byte, []byte, error)
 	Sign(message []byte) ([]byte, error)
 	Mac(message []byte, sequenceNumber int) ([]byte, error)
 	VerifyMac(message, expectedMac []byte, sequenceNumber int) (bool, error)
@@ -84,7 +84,7 @@ type ServerSession interface {
 	GetSessionData() *SessionData
 
 	Version() int
-	Seal(message []byte) ([]byte, error)
+	Seal(message []byte) ([]byte, []byte, error)
 	Sign(message []byte) ([]byte, error)
 	Mac(message []byte, sequenceNumber int) ([]byte, error)
 	VerifyMac(message, expectedMac []byte, sequenceNumber int) (bool, error)
@@ -124,4 +124,6 @@ type SessionData struct {
 
 	clientHandle *rc4P.Cipher
 	serverHandle *rc4P.Cipher
+
+	sequenceNumber int
 }

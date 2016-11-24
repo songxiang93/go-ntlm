@@ -7,6 +7,7 @@ import (
 	rc4P "crypto/rc4"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ type V2Session struct {
 }
 
 func (n *V2Session) SetUserInfo(username string, password string, domain string) {
+	n.sequenceNumber = 0
 	n.user = username
 	n.password = password
 	n.userDomain = domain
@@ -82,11 +84,30 @@ func (n *V2Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	return
 }
 
-func (n *V2Session) Seal(message []byte) ([]byte, error) {
-	return nil, nil
+//Seal returns the sealed message and signature
+func (n *V2Session) Seal(message []byte) ([]byte, []byte, error) {
+	//for now we are just doing client stuff
+	d := rc4(n.clientHandle, message)
+	s, _ := n.Sign(message)
+
+	return d, s, nil
+
 }
+
+//Sign returns the signing value of the message
 func (n *V2Session) Sign(message []byte) ([]byte, error) {
-	return nil, nil
+	seqBytes := new(bytes.Buffer)
+	binary.Write(seqBytes, binary.LittleEndian, n.sequenceNumber)
+	message = append([]byte{0x00, 0x00, 0x00, 0x00}, message...)
+	fmt.Println(seqBytes.Bytes())
+	hmac := hmacMd5(n.ClientSealingKey, message)
+	rc := rc4(n.clientHandle, hmac[:8])
+
+	//concat version stamp 0x01000000
+	final := append([]byte{0x01, 0x00, 0x00, 0x00}, rc...)
+	final = append(final, seqBytes.Bytes()...)
+	n.sequenceNumber++
+	return final, nil
 }
 
 //Mildly ghetto that we expose this

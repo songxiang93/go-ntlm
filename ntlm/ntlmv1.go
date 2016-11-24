@@ -5,6 +5,7 @@ package ntlm
 import (
 	"bytes"
 	rc4P "crypto/rc4"
+	"encoding/binary"
 	"errors"
 	"log"
 	"strings"
@@ -105,12 +106,41 @@ func (n *V1Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	return
 }
 
-func (n *V1Session) Seal(message []byte) ([]byte, error) {
-	return nil, nil
+//Seal returns the sealed message and signature
+func (n *V1Session) Seal(message []byte) ([]byte, []byte, error) {
+	//for now we are just doing client stuff
+	d := rc4(n.clientHandle, message)
+	s, _ := n.Sign(message)
+	return d, s, nil
+
 }
 
+//Sign returns the signing value of the message
 func (n *V1Session) Sign(message []byte) ([]byte, error) {
-	return nil, nil
+
+	crc := crc32(message)
+
+	//sequenceNumber + crc + padding
+	crcBytes := new(bytes.Buffer)
+	binary.Write(crcBytes, binary.LittleEndian, crc)
+	c := crcBytes.Bytes()
+	seqBytes := new(bytes.Buffer)
+	binary.Write(seqBytes, binary.LittleEndian, n.sequenceNumber)
+	c = append(seqBytes.Bytes(), c...)
+	c = append(c, []byte{0x00, 0x00, 0x00, 0x00}...)
+	//encrypt number with RC4
+
+	r := rc4(n.clientHandle, c)
+	//overwrite first 4 bytes with 0x78010900
+	r[0] = 0x78
+	r[1] = 0x01
+	r[2] = 0x09
+	r[3] = 0x00
+
+	//concat version stamp 0x01000000
+	r = append(r, []byte{0x01, 0x00, 0x00, 0x00}...)
+	n.sequenceNumber++
+	return r, nil
 }
 
 func ntlmV1Mac(message []byte, sequenceNumber int, handle *rc4P.Cipher, sealingKey, signingKey []byte, NegotiateFlags uint32) []byte {
