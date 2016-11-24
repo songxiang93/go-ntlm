@@ -125,5 +125,5 @@ type SessionData struct {
 	clientHandle *rc4P.Cipher
 	serverHandle *rc4P.Cipher
 
-	sequenceNumber int
+	sequenceNumber uint32
 }

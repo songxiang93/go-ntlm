@@ -119,17 +119,18 @@ func (n *V1Session) Seal(message []byte) ([]byte, []byte, error) {
 func (n *V1Session) Sign(message []byte) ([]byte, error) {
 
 	crc := crc32(message)
-
 	//sequenceNumber + crc + padding
 	crcBytes := new(bytes.Buffer)
 	binary.Write(crcBytes, binary.LittleEndian, crc)
 	c := crcBytes.Bytes()
+
 	seqBytes := new(bytes.Buffer)
 	binary.Write(seqBytes, binary.LittleEndian, n.sequenceNumber)
 	c = append(seqBytes.Bytes(), c...)
-	c = append(c, []byte{0x00, 0x00, 0x00, 0x00}...)
-	//encrypt number with RC4
 
+	c = append(c, []byte{0x00, 0x00, 0x00, 0x00}...)
+
+	//encrypt number with RC4
 	r := rc4(n.clientHandle, c)
 	//overwrite first 4 bytes with 0x78010900
 	r[0] = 0x78
@@ -139,6 +140,7 @@ func (n *V1Session) Sign(message []byte) ([]byte, error) {
 
 	//concat version stamp 0x01000000
 	r = append(r, []byte{0x01, 0x00, 0x00, 0x00}...)
+
 	n.sequenceNumber++
 	return r, nil
 }

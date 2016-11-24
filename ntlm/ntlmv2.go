@@ -7,7 +7,6 @@ import (
 	rc4P "crypto/rc4"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -98,14 +97,19 @@ func (n *V2Session) Seal(message []byte) ([]byte, []byte, error) {
 func (n *V2Session) Sign(message []byte) ([]byte, error) {
 	seqBytes := new(bytes.Buffer)
 	binary.Write(seqBytes, binary.LittleEndian, n.sequenceNumber)
-	message = append([]byte{0x00, 0x00, 0x00, 0x00}, message...)
-	fmt.Println(seqBytes.Bytes())
-	hmac := hmacMd5(n.ClientSealingKey, message)
+	message = append(seqBytes.Bytes(), message...)
+
+	hmac := hmacMd5(n.ClientSigningKey, message)
+
+	//generate RC4 of first 8 bytes
 	rc := rc4(n.clientHandle, hmac[:8])
 
 	//concat version stamp 0x01000000
 	final := append([]byte{0x01, 0x00, 0x00, 0x00}, rc...)
+
+	//and the sequence number
 	final = append(final, seqBytes.Bytes()...)
+
 	n.sequenceNumber++
 	return final, nil
 }
