@@ -86,6 +86,9 @@ func (n *V2Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 //Seal returns the sealed message and signature
 func (n *V2Session) Seal(message []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
+	//handle, _ := rc4Init([]byte{0x6f, 0x0d, 0x99, 0x53, 0x50, 0x33, 0x95, 0x1c, 0xbe, 0x49, 0x9c, 0xd1, 0x91, 0x4f, 0xe9, 0xee})
+	//message = []byte{0x6a, 0x43, 0x49, 0x46, 0x53}
+	//d := rc4(handle, message)
 	d := rc4(n.clientHandle, message)
 	s, _ := n.Sign(message)
 
@@ -384,7 +387,7 @@ func (n *V2ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
-	am.Workstation, _ = CreateStringPayload("SQUAREMILL")
+	am.Workstation, _ = CreateStringPayload("RULER")
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Mic = make([]byte, 16)
