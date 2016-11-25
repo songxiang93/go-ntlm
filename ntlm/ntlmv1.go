@@ -5,7 +5,6 @@ package ntlm
 import (
 	"bytes"
 	rc4P "crypto/rc4"
-	"encoding/binary"
 	"errors"
 	"log"
 	"strings"
@@ -103,46 +102,23 @@ func (n *V1Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	n.ServerSigningKey = signKey(n.NegotiateFlags, n.exportedSessionKey, "Server")
 	n.ClientSealingKey = sealKey(n.NegotiateFlags, n.exportedSessionKey, "Client")
 	n.ServerSealingKey = sealKey(n.NegotiateFlags, n.exportedSessionKey, "Server")
+
 	return
 }
 
 //Seal returns the sealed message and signature
 func (n *V1Session) Seal(message []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
-	d := rc4(n.clientHandle, message)
-	s, _ := n.Sign(message)
-	return d, s, nil
+	d, s := seal(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, message)
+	return d, s.Bytes(), nil
 
 }
 
 //Sign returns the signing value of the message
 func (n *V1Session) Sign(message []byte) ([]byte, error) {
-
-	crc := crc32(message)
-	//sequenceNumber + crc + padding
-	crcBytes := new(bytes.Buffer)
-	binary.Write(crcBytes, binary.LittleEndian, crc)
-	c := crcBytes.Bytes()
-
-	seqBytes := new(bytes.Buffer)
-	binary.Write(seqBytes, binary.LittleEndian, n.sequenceNumber)
-	c = append(seqBytes.Bytes(), c...)
-
-	c = append(c, []byte{0x00, 0x00, 0x00, 0x00}...)
-
-	//encrypt number with RC4
-	r := rc4(n.clientHandle, c)
-	//overwrite first 4 bytes with 0x78010900
-	r[0] = 0x78
-	r[1] = 0x01
-	r[2] = 0x09
-	r[3] = 0x00
-
-	//concat version stamp 0x01000000
-	r = append(r, []byte{0x01, 0x00, 0x00, 0x00}...)
-
+	sig := mac(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, uint32(n.sequenceNumber), message)
 	n.sequenceNumber++
-	return r, nil
+	return sig.Bytes(), nil
 }
 
 func ntlmV1Mac(message []byte, sequenceNumber int, handle *rc4P.Cipher, sealingKey, signingKey []byte, NegotiateFlags uint32) []byte {
@@ -378,7 +354,7 @@ func (n *V1ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
-	am.Workstation, _ = CreateStringPayload("SQUAREMILL")
+	am.Workstation, _ = CreateStringPayload("RULER")
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: uint8(15)}

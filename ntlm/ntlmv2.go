@@ -77,44 +77,27 @@ func (n *V2Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	}
 
 	n.ClientSigningKey = signKey(n.NegotiateFlags, n.exportedSessionKey, "Client")
+
 	n.ServerSigningKey = signKey(n.NegotiateFlags, n.exportedSessionKey, "Server")
 	n.ClientSealingKey = sealKey(n.NegotiateFlags, n.exportedSessionKey, "Client")
 	n.ServerSealingKey = sealKey(n.NegotiateFlags, n.exportedSessionKey, "Server")
+
 	return
 }
 
 //Seal returns the sealed message and signature
 func (n *V2Session) Seal(message []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
-	//handle, _ := rc4Init([]byte{0x6f, 0x0d, 0x99, 0x53, 0x50, 0x33, 0x95, 0x1c, 0xbe, 0x49, 0x9c, 0xd1, 0x91, 0x4f, 0xe9, 0xee})
-	//message = []byte{0x6a, 0x43, 0x49, 0x46, 0x53}
-	//d := rc4(handle, message)
-	d := rc4(n.clientHandle, message)
-	s, _ := n.Sign(message)
-
-	return d, s, nil
-
+	d, s := seal(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, message)
+	n.sequenceNumber++
+	return d, s.Bytes(), nil
 }
 
 //Sign returns the signing value of the message
 func (n *V2Session) Sign(message []byte) ([]byte, error) {
-	seqBytes := new(bytes.Buffer)
-	binary.Write(seqBytes, binary.LittleEndian, n.sequenceNumber)
-	message = append(seqBytes.Bytes(), message...)
-
-	hmac := hmacMd5(n.ClientSigningKey, message)
-
-	//generate RC4 of first 8 bytes
-	rc := rc4(n.clientHandle, hmac[:8])
-
-	//concat version stamp 0x01000000
-	final := append([]byte{0x01, 0x00, 0x00, 0x00}, rc...)
-
-	//and the sequence number
-	final = append(final, seqBytes.Bytes()...)
-
+	sig := mac(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, uint32(n.sequenceNumber), message)
 	n.sequenceNumber++
-	return final, nil
+	return sig.Bytes(), nil
 }
 
 //Mildly ghetto that we expose this
