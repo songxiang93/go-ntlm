@@ -277,8 +277,49 @@ type V1ClientSession struct {
 	V1Session
 }
 
+/*
+NTLMSSP_NEGOTIATE_56: true
+NTLMSSP_NEGOTIATE_KEY_EXCH: true
+NTLMSSP_NEGOTIATE_128: true
+NTLMSSP_NEGOTIATE_VERSION: true
+NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY: true
+NTLMSSP_NEGOTIATE_ALWAYS_SIGN: true
+NTLMSSP_NEGOTIATE_NTLM: true
+NTLMSSP_REQUEST_TARGET: true
+NTLM_NEGOTIATE_OEM: true
+NTLMSSP_NEGOTIATE_UNICODE: true
+*/
+
 func (n *V1ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err error) {
-	return nil, nil
+	flags := uint32(0)
+	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_NTLM.Set(flags)
+	flags = NTLMSSP_REQUEST_TARGET.Set(flags)
+	flags = NTLM_NEGOTIATE_OEM.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_UNICODE.Set(flags)
+
+	neg := new(NegotiateMessage)
+	neg.Signature = []byte("NTLMSSP\x00")
+	neg.MessageType = 1
+	neg.NegotiateFlags = flags
+
+	//if NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED
+	neg.DomainNameFields = new(PayloadStruct)
+	//if NTLMSSP_NEGOTIATE_OEM_WORKSTATION_SUPPLIED
+	neg.WorkstationFields = new(PayloadStruct)
+
+	neg.Version = new(VersionStruct)
+	neg.Version.ProductMajorVersion = 0x0a
+	neg.Version.ProductMinorVersion = 0
+	neg.Version.ProductBuild = 0x2800
+	neg.Version.NTLMRevisionCurrent = 0x0f
+
+	return neg, nil
 }
 
 func (n *V1ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err error) {

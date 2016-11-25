@@ -77,7 +77,6 @@ func (n *V2Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	}
 
 	n.ClientSigningKey = signKey(n.NegotiateFlags, n.exportedSessionKey, "Client")
-
 	n.ServerSigningKey = signKey(n.NegotiateFlags, n.exportedSessionKey, "Server")
 	n.ClientSealingKey = sealKey(n.NegotiateFlags, n.exportedSessionKey, "Client")
 	n.ServerSealingKey = sealKey(n.NegotiateFlags, n.exportedSessionKey, "Server")
@@ -299,7 +298,35 @@ type V2ClientSession struct {
 }
 
 func (n *V2ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err error) {
-	return nil, nil
+	flags := uint32(0)
+	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_NTLM.Set(flags)
+	flags = NTLMSSP_REQUEST_TARGET.Set(flags)
+	flags = NTLM_NEGOTIATE_OEM.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_UNICODE.Set(flags)
+
+	neg := new(NegotiateMessage)
+	neg.Signature = []byte("NTLMSSP\x00")
+	neg.MessageType = 1
+	neg.NegotiateFlags = flags
+
+	//if NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED
+	neg.DomainNameFields = new(PayloadStruct)
+	//if NTLMSSP_NEGOTIATE_OEM_WORKSTATION_SUPPLIED
+	neg.WorkstationFields = new(PayloadStruct)
+
+	neg.Version = new(VersionStruct)
+	neg.Version.ProductMajorVersion = 0x0a
+	neg.Version.ProductMinorVersion = 0
+	neg.Version.ProductBuild = 0x2800
+	neg.Version.NTLMRevisionCurrent = 0x0f
+
+	return neg, nil
 }
 
 func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err error) {
@@ -317,12 +344,15 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 	flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_NTLM.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_DATAGRAM.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_DATAGRAM.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_SIGN.Set(flags)
 	flags = NTLMSSP_REQUEST_TARGET.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_UNICODE.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
-
+	flags = NTLMSSP_NEGOTIATE_SEAL.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_LM_KEY.Unset(flags)
+	//flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	n.NegotiateFlags = flags
 
 	err = n.fetchResponseKeys()
@@ -370,7 +400,7 @@ func (n *V2ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
-	am.Workstation, _ = CreateStringPayload("RULER")
+	am.Workstation, _ = CreateStringPayload("WIN-7KEKUI16RSH")
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Mic = make([]byte, 16)
