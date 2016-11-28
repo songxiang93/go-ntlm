@@ -46,8 +46,35 @@ type AvPairs struct {
 	List []AvPair
 }
 
+type SingleHostData struct {
+	Size       uint32
+	Z4         uint32
+	CustomData []byte // 8bytes
+	MachineID  []byte //32bytes
+}
+
+func (shd *SingleHostData) Bytes() []byte {
+	buf := make([]byte, 0)
+	buffer := bytes.NewBuffer(buf)
+
+	binary.Write(buffer, binary.LittleEndian, shd.Size)
+	binary.Write(buffer, binary.LittleEndian, shd.Z4)
+	buffer.Write(shd.CustomData)
+	buffer.Write(shd.MachineID)
+
+	fmt.Println("here ", buf, buffer.Bytes())
+	return buffer.Bytes()
+}
+
 func (p *AvPairs) AddAvPair(avId AvPairType, bytes []byte) {
 	a := &AvPair{AvId: avId, AvLen: uint16(len(bytes)), Value: bytes}
+	p.List = append(p.List, *a)
+}
+
+func (p *AvPairs) AddAvPairPos(pos int, avId AvPairType, bytes []byte) {
+	a := &AvPair{AvId: avId, AvLen: uint16(len(bytes)), Value: bytes}
+
+	p.List = p.List[:pos]
 	p.List = append(p.List, *a)
 }
 

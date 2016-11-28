@@ -42,11 +42,11 @@ func CreateClientSession(version Version, mode Mode) (n ClientSession, err error
 type ClientSession interface {
 	SetUserInfo(username string, password string, domain string)
 	SetMode(mode Mode)
-
+	SetTarget(target string)
 	GenerateNegotiateMessage() (*NegotiateMessage, error)
 	ProcessChallengeMessage(*ChallengeMessage) error
 	GenerateAuthenticateMessage() (*AuthenticateMessage, error)
-
+	GenerateAuthenticateMessageAV() (*AuthenticateMessage, error)
 	Seal(message []byte) ([]byte, []byte, error)
 	Sign(message []byte) ([]byte, error)
 	Mac(message []byte, sequenceNumber int) ([]byte, error)
@@ -126,4 +126,5 @@ type SessionData struct {
 	serverHandle *rc4P.Cipher
 
 	sequenceNumber uint32
+	target         string
 }

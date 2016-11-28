@@ -32,6 +32,10 @@ func (n *V1Session) SetMode(mode Mode) {
 	n.mode = mode
 }
 
+func (n *V1Session) SetTarget(target string) {
+	n.target = target
+}
+
 func (n *V1Session) Version() int {
 	return 1
 }
@@ -313,11 +317,7 @@ func (n *V1ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err 
 	//if NTLMSSP_NEGOTIATE_OEM_WORKSTATION_SUPPLIED
 	neg.WorkstationFields = new(PayloadStruct)
 
-	neg.Version = new(VersionStruct)
-	neg.Version.ProductMajorVersion = 0x0a
-	neg.Version.ProductMinorVersion = 0
-	neg.Version.ProductBuild = 0x2800
-	neg.Version.NTLMRevisionCurrent = 0x0f
+	neg.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
 
 	return neg, nil
 }
@@ -400,6 +400,9 @@ func (n *V1ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: uint8(15)}
 	return am, nil
+}
+func (n *V1ClientSession) GenerateAuthenticateMessageAV() (am *AuthenticateMessage, err error) {
+	return nil, nil
 }
 
 func (n *V1ClientSession) computeEncryptedSessionKey() (err error) {

@@ -35,6 +35,10 @@ func (n *V2Session) SetMode(mode Mode) {
 	n.mode = mode
 }
 
+func (n *V2Session) SetTarget(target string) {
+	n.target = target
+}
+
 func (n *V2Session) Version() int {
 	return 2
 }
@@ -57,9 +61,9 @@ func (n *V2Session) computeExpectedResponses(timestamp []byte, avPairBytes []byt
 	temp := concat([]byte{0x01}, []byte{0x01}, zeroBytes(6), timestamp, n.clientChallenge, zeroBytes(4), avPairBytes, zeroBytes(4))
 	ntProofStr := hmacMd5(n.responseKeyNT, concat(n.serverChallenge, temp))
 	n.ntChallengeResponse = concat(ntProofStr, temp)
-	n.lmChallengeResponse = concat(hmacMd5(n.responseKeyLM, concat(n.serverChallenge, n.clientChallenge)), n.clientChallenge)
+	n.lmChallengeResponse = concat(hmacMd5(n.responseKeyNT, concat(n.serverChallenge, n.clientChallenge)), n.clientChallenge)
 	n.sessionBaseKey = hmacMd5(n.responseKeyNT, ntProofStr)
-	return
+	return err
 }
 
 func (n *V2Session) computeKeyExchangeKey() (err error) {
@@ -89,6 +93,7 @@ func (n *V2Session) Seal(message []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
 	d, s := seal(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, message)
 	n.sequenceNumber++
+
 	return d, s.Bytes(), nil
 }
 
@@ -280,7 +285,7 @@ func (n *V2ServerSession) computeExportedSessionKey() (err error) {
 			return err
 		}
 		// TODO: Calculate mic correctly. This calculation is not producing the right results now
-		// n.calculatedMic = HmacMd5(n.exportedSessionKey, concat(n.challengeMessage.Payload, n.authenticateMessage.Bytes))
+		//n.calculatedMic = HmacMd5(n.exportedSessionKey, concat(n.challengeMessage.Payload, n.authenticateMessage.Bytes))
 	} else {
 		n.exportedSessionKey = n.keyExchangeKey
 		// TODO: Calculate mic correctly. This calculation is not producing the right results now
@@ -300,7 +305,7 @@ type V2ClientSession struct {
 func (n *V2ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err error) {
 	flags := uint32(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
@@ -313,18 +318,13 @@ func (n *V2ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err 
 	neg := new(NegotiateMessage)
 	neg.Signature = []byte("NTLMSSP\x00")
 	neg.MessageType = 1
-	neg.NegotiateFlags = flags
+	neg.NegotiateFlags = 0xe20882b7 //flags
 
 	//if NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED
 	neg.DomainNameFields = new(PayloadStruct)
 	//if NTLMSSP_NEGOTIATE_OEM_WORKSTATION_SUPPLIED
 	neg.WorkstationFields = new(PayloadStruct)
-
-	neg.Version = new(VersionStruct)
-	neg.Version.ProductMajorVersion = 0x0a
-	neg.Version.ProductMinorVersion = 0
-	neg.Version.ProductBuild = 0x2800
-	neg.Version.NTLMRevisionCurrent = 0x0f
+	neg.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
 
 	return neg, nil
 }
@@ -334,23 +334,20 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 	n.serverChallenge = cm.ServerChallenge
 	n.clientChallenge = randomBytes(8)
 
-	// Set up the default flags for processing the response. These are the flags that we will return
-	// in the authenticate message
 	flags := uint32(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_TARGET_INFO.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_TARGET_INFO.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_NTLM.Set(flags)
-	//flags = NTLMSSP_NEGOTIATE_DATAGRAM.Set(flags)
+	//flags = NTLMS.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_SIGN.Set(flags)
-	flags = NTLMSSP_REQUEST_TARGET.Set(flags)
+	//flags = NTLMSSP_REQUEST_TARGET.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_UNICODE.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_SEAL.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
 	//flags = NTLMSSP_NEGOTIATE_LM_KEY.Unset(flags)
 	//flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	n.NegotiateFlags = flags
@@ -361,7 +358,22 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 	}
 
 	timestamp := timeToWindowsFileTime(time.Now())
+
+	if n.mode == ConnectionOrientedMode {
+		//we need to add the MsvAvTargetName
+		//get current AvPairs
+		n.NegotiateFlags = cm.NegotiateFlags
+		pairs := ReadAvPairs(cm.TargetInfoPayloadStruct.Payload)
+		//hack.. the AddAvPairPos method discards all data after the pos..
+		pairs.AddAvPairPos(len(pairs.List)-1, MsvAvTargetName, utf16FromString(n.target)) //all zero
+		pairs.AddAvPair(MsvAvEOL, make([]byte, 0))
+
+		cm.TargetInfo = pairs
+		cm.TargetInfoPayloadStruct, _ = CreateBytePayload(pairs.Bytes())
+	}
+
 	err = n.computeExpectedResponses(timestamp, cm.TargetInfoPayloadStruct.Payload)
+
 	if err != nil {
 		return err
 	}
@@ -400,10 +412,29 @@ func (n *V2ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
-	am.Workstation, _ = CreateStringPayload("WIN-7KEKUI16RSH")
+	am.Workstation, _ = CreateStringPayload("RULER")
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Mic = make([]byte, 16)
+	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
+	return am, nil
+}
+
+func (n *V2ClientSession) GenerateAuthenticateMessageAV() (am *AuthenticateMessage, err error) {
+	am = new(AuthenticateMessage)
+	am.Signature = []byte("NTLMSSP\x00")
+	am.MessageType = uint32(3)
+	am.LmChallengeResponse, _ = CreateBytePayload(make([]byte, 24)) //CreateBytePayload(n.lmChallengeResponse)
+	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
+	am.DomainName, _ = CreateStringPayload(n.userDomain)
+	am.UserName, _ = CreateStringPayload(n.user)
+	am.Workstation, _ = CreateStringPayload("WIN-7KEKUI16RSH")
+	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
+	am.NegotiateFlags = n.NegotiateFlags
+	am.Mic = make([]byte, 16) //calculate this.. doh!
+	//v := concat(n.challengeMessage.Payload, n.authenticateMessage.Payload)
+	//am.Mic = hmacMd5(n.exportedSessionKey, v)
+
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
 	return am, nil
 }

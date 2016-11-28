@@ -192,12 +192,12 @@ func (a *AuthenticateMessage) Bytes() []byte {
 
 	binary.Write(buffer, binary.LittleEndian, a.MessageType)
 
-	a.LmChallengeResponse.Offset = payloadOffset
-	payloadOffset += uint32(a.LmChallengeResponse.Len)
+	a.LmChallengeResponse.Offset = payloadOffset + uint32(a.DomainName.Len+a.UserName.Len+a.Workstation.Len) //payloadOffset
+	//payloadOffset += uint32(a.LmChallengeResponse.Len) //rather after workstation
 	buffer.Write(a.LmChallengeResponse.Bytes())
 
-	a.NtChallengeResponseFields.Offset = payloadOffset
-	payloadOffset += uint32(a.NtChallengeResponseFields.Len)
+	a.NtChallengeResponseFields.Offset = a.LmChallengeResponse.Offset + uint32((a.LmChallengeResponse.Len)) //payloadOffset
+	//payloadOffset += uint32(a.NtChallengeResponseFields.Len)
 	buffer.Write(a.NtChallengeResponseFields.Bytes())
 
 	a.DomainName.Offset = payloadOffset
@@ -231,11 +231,13 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	}
 
 	// Write out the payloads
-	buffer.Write(a.LmChallengeResponse.Payload)
-	buffer.Write(a.NtChallengeResponseFields.Payload)
+
 	buffer.Write(a.DomainName.Payload)
 	buffer.Write(a.UserName.Payload)
 	buffer.Write(a.Workstation.Payload)
+
+	buffer.Write(a.LmChallengeResponse.Payload)
+	buffer.Write(a.NtChallengeResponseFields.Payload)
 	buffer.Write(a.EncryptedRandomSessionKey.Payload)
 
 	return buffer.Bytes()
