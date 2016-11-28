@@ -40,7 +40,16 @@ func (n *V1Session) Version() int {
 	return 1
 }
 
+func (n *V1Session) SetNTHash(nthash []byte) {
+	//fmt.Printf("Passed: %x\n", nthash)
+	n.responseKeyNT = nthash
+}
+
 func (n *V1Session) fetchResponseKeys() (err error) {
+	//check if we have set the LM from the command line (pass the hash)
+	if len(n.responseKeyNT) > 0 {
+		return
+	}
 	n.responseKeyLM, err = lmowfv1(n.password)
 	if err != nil {
 		return err
@@ -50,6 +59,7 @@ func (n *V1Session) fetchResponseKeys() (err error) {
 }
 
 func (n *V1Session) computeExpectedResponses() (err error) {
+	//fmt.Printf("NT NTLMv1: %x\n", n.responseKeyNT)
 	if NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(n.NegotiateFlags) {
 		n.ntChallengeResponse, err = desL(n.responseKeyNT, md5(concat(n.serverChallenge, n.clientChallenge))[0:8])
 		if err != nil {

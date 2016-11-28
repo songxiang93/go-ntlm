@@ -42,6 +42,7 @@ func CreateClientSession(version Version, mode Mode) (n ClientSession, err error
 type ClientSession interface {
 	SetUserInfo(username string, password string, domain string)
 	SetMode(mode Mode)
+	SetNTHash(nthash []byte)
 	SetTarget(target string)
 	GenerateNegotiateMessage() (*NegotiateMessage, error)
 	ProcessChallengeMessage(*ChallengeMessage) error

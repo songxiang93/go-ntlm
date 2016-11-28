@@ -7,6 +7,7 @@ import (
 	rc4P "crypto/rc4"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -43,6 +44,10 @@ func (n *V2Session) Version() int {
 	return 2
 }
 
+func (n *V2Session) SetNTHash(nthash []byte) {
+	n.responseKeyNT = nthash
+}
+
 func (n *V2Session) fetchResponseKeys() (err error) {
 	// Usually at this point we'd go out to Active Directory and get these keys
 	// Here we are assuming we have the information locally
@@ -58,6 +63,7 @@ func (n *V2ServerSession) GetSessionData() *SessionData {
 // Define ComputeResponse(NegFlg, ResponseKeyNT, ResponseKeyLM, CHALLENGE_MESSAGE.ServerChallenge, ClientChallenge, Time, ServerName)
 // ServerNameBytes - The NtChallengeResponseFields.NTLMv2_RESPONSE.NTLMv2_CLIENT_CHALLENGE.AvPairs field structure of the AUTHENTICATE_MESSAGE payload.
 func (n *V2Session) computeExpectedResponses(timestamp []byte, avPairBytes []byte) (err error) {
+	fmt.Printf("NT: %x\n", n.responseKeyNT)
 	temp := concat([]byte{0x01}, []byte{0x01}, zeroBytes(6), timestamp, n.clientChallenge, zeroBytes(4), avPairBytes, zeroBytes(4))
 	ntProofStr := hmacMd5(n.responseKeyNT, concat(n.serverChallenge, temp))
 	n.ntChallengeResponse = concat(ntProofStr, temp)
@@ -416,6 +422,9 @@ func (n *V2ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Mic = make([]byte, 16)
+	//v := concat(n.challengeMessage.Payload, n.authenticateMessage.Payload)
+	//am.Mic = hmacMd5(n.exportedSessionKey, v)
+
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
 	return am, nil
 }
@@ -424,7 +433,7 @@ func (n *V2ClientSession) GenerateAuthenticateMessageAV() (am *AuthenticateMessa
 	am = new(AuthenticateMessage)
 	am.Signature = []byte("NTLMSSP\x00")
 	am.MessageType = uint32(3)
-	am.LmChallengeResponse, _ = CreateBytePayload(make([]byte, 24)) //CreateBytePayload(n.lmChallengeResponse)
+	am.LmChallengeResponse, _ = CreateBytePayload(n.lmChallengeResponse)
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
@@ -432,7 +441,7 @@ func (n *V2ClientSession) GenerateAuthenticateMessageAV() (am *AuthenticateMessa
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Mic = make([]byte, 16) //calculate this.. doh!
-	//v := concat(n.challengeMessage.Payload, n.authenticateMessage.Payload)
+	//v := concat(n.challengeMessage.Payload, n.ntChallengeResponse)
 	//am.Mic = hmacMd5(n.exportedSessionKey, v)
 
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
