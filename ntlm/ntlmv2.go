@@ -7,7 +7,6 @@ import (
 	rc4P "crypto/rc4"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -63,7 +62,6 @@ func (n *V2ServerSession) GetSessionData() *SessionData {
 // Define ComputeResponse(NegFlg, ResponseKeyNT, ResponseKeyLM, CHALLENGE_MESSAGE.ServerChallenge, ClientChallenge, Time, ServerName)
 // ServerNameBytes - The NtChallengeResponseFields.NTLMv2_RESPONSE.NTLMv2_CLIENT_CHALLENGE.AvPairs field structure of the AUTHENTICATE_MESSAGE payload.
 func (n *V2Session) computeExpectedResponses(timestamp []byte, avPairBytes []byte) (err error) {
-	fmt.Printf("NT: %x\n", n.responseKeyNT)
 	temp := concat([]byte{0x01}, []byte{0x01}, zeroBytes(6), timestamp, n.clientChallenge, zeroBytes(4), avPairBytes, zeroBytes(4))
 	ntProofStr := hmacMd5(n.responseKeyNT, concat(n.serverChallenge, temp))
 	n.ntChallengeResponse = concat(ntProofStr, temp)
@@ -313,7 +311,7 @@ func (n *V2ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err 
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	//flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
+	//flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_NTLM.Set(flags)
@@ -324,7 +322,7 @@ func (n *V2ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err 
 	neg := new(NegotiateMessage)
 	neg.Signature = []byte("NTLMSSP\x00")
 	neg.MessageType = 1
-	neg.NegotiateFlags = 0xe20882b7 //flags
+	neg.NegotiateFlags = flags // 0xe20882b7
 
 	//if NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED
 	neg.DomainNameFields = new(PayloadStruct)
@@ -332,6 +330,8 @@ func (n *V2ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err 
 	neg.WorkstationFields = new(PayloadStruct)
 	neg.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
 
+	n.negotiateMessage = neg
+	n.NegotiateFlags = flags
 	return neg, nil
 }
 
@@ -342,8 +342,8 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 
 	flags := uint32(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
-	//flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
-	//flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
 	//flags = NTLMSSP_NEGOTIATE_TARGET_INFO.Set(flags)
 	//flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
 	//flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
@@ -356,7 +356,7 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 	flags = NTLMSSP_NEGOTIATE_SEAL.Set(flags)
 	//flags = NTLMSSP_NEGOTIATE_LM_KEY.Unset(flags)
 	//flags = NTLMSSP_NEGOTIATE_56.Set(flags)
-	n.NegotiateFlags = flags
+	n.NegotiateFlags = cm.NegotiateFlags //flags
 
 	err = n.fetchResponseKeys()
 	if err != nil {
@@ -366,14 +366,16 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 	timestamp := timeToWindowsFileTime(time.Now())
 
 	if n.mode == ConnectionOrientedMode {
+		single := &SingleHostData{Size: 48, CustomData: []byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00}, MachineID: []byte{0x8a, 0xc9, 0x76, 0x46, 0xb9, 0x41, 0x62, 0xc9, 0x5b, 0x16, 0xbb, 0x6e, 0x20, 0x91, 0xbd, 0x7a, 0xd0, 0x42, 0x04, 0xaa, 0x07, 0xa6, 0x2f, 0x1a, 0x2f, 0x3e, 0xce, 0xa0, 0x75, 0x23, 0xf3, 0xef}}
 		//we need to add the MsvAvTargetName
 		//get current AvPairs
-		n.NegotiateFlags = cm.NegotiateFlags
+		//n.NegotiateFlags = cm.NegotiateFlags
 		pairs := ReadAvPairs(cm.TargetInfoPayloadStruct.Payload)
-		//hack.. the AddAvPairPos method discards all data after the pos..
+		pairs.AddAvPairPos(len(pairs.List)-1, MsvAvFlags, uint32ToBytes(2)) //all zero
+		pairs.AddAvPairPos(len(pairs.List)-1, MsAvRestrictions, single.Bytes())
+		pairs.AddAvPairPos(len(pairs.List)-1, MsvChannelBindings, make([]byte, 16))
 		pairs.AddAvPairPos(len(pairs.List)-1, MsvAvTargetName, utf16FromString(n.target)) //all zero
 		pairs.AddAvPair(MsvAvEOL, make([]byte, 0))
-
 		cm.TargetInfo = pairs
 		cm.TargetInfoPayloadStruct, _ = CreateBytePayload(pairs.Bytes())
 	}
@@ -422,9 +424,6 @@ func (n *V2ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Mic = make([]byte, 16)
-	//v := concat(n.challengeMessage.Payload, n.authenticateMessage.Payload)
-	//am.Mic = hmacMd5(n.exportedSessionKey, v)
-
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
 	return am, nil
 }
@@ -433,18 +432,19 @@ func (n *V2ClientSession) GenerateAuthenticateMessageAV() (am *AuthenticateMessa
 	am = new(AuthenticateMessage)
 	am.Signature = []byte("NTLMSSP\x00")
 	am.MessageType = uint32(3)
-	am.LmChallengeResponse, _ = CreateBytePayload(n.lmChallengeResponse)
+	am.LmChallengeResponse, _ = CreateBytePayload(make([]byte, 24)) //n.lmChallengeResponse)
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
-	am.Workstation, _ = CreateStringPayload("WIN-7KEKUI16RSH")
+	am.Workstation, _ = CreateStringPayload("RULER")
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
-	am.NegotiateFlags = n.NegotiateFlags
-	am.Mic = make([]byte, 16) //calculate this.. doh!
-	//v := concat(n.challengeMessage.Payload, n.ntChallengeResponse)
-	//am.Mic = hmacMd5(n.exportedSessionKey, v)
-
+	am.NegotiateFlags = 0xe2888235 //
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
+
+	v := concat(n.negotiateMessage.Bytes(), n.challengeMessage.Bytes())
+	v = concat(v, am.Bytes())
+	v = hmacMd5(n.exportedSessionKey, v)
+	am.Mic = v
 	return am, nil
 }
 
@@ -456,7 +456,8 @@ func (n *V2ClientSession) computeEncryptedSessionKey() (err error) {
 			return err
 		}
 	} else {
-		n.encryptedRandomSessionKey = n.keyExchangeKey
+		n.encryptedRandomSessionKey = make([]byte, 0)
+		n.exportedSessionKey = n.keyExchangeKey
 	}
 	return nil
 }

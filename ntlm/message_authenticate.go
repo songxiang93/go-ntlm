@@ -212,7 +212,7 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	payloadOffset += uint32(a.Workstation.Len)
 	buffer.Write(a.Workstation.Bytes())
 
-	a.EncryptedRandomSessionKey.Offset = payloadOffset
+	a.EncryptedRandomSessionKey.Offset = a.NtChallengeResponseFields.Offset + uint32(a.NtChallengeResponseFields.Len) //payloadOffset
 	payloadOffset += uint32(a.EncryptedRandomSessionKey.Len)
 	buffer.Write(a.EncryptedRandomSessionKey.Bytes())
 

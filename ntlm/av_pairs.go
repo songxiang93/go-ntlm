@@ -62,7 +62,6 @@ func (shd *SingleHostData) Bytes() []byte {
 	buffer.Write(shd.CustomData)
 	buffer.Write(shd.MachineID)
 
-	fmt.Println("here ", buf, buffer.Bytes())
 	return buffer.Bytes()
 }
 
@@ -73,9 +72,7 @@ func (p *AvPairs) AddAvPair(avId AvPairType, bytes []byte) {
 
 func (p *AvPairs) AddAvPairPos(pos int, avId AvPairType, bytes []byte) {
 	a := &AvPair{AvId: avId, AvLen: uint16(len(bytes)), Value: bytes}
-
-	p.List = p.List[:pos]
-	p.List = append(p.List, *a)
+	p.List = append(p.List[:pos], append([]AvPair{*a}, p.List[pos:]...)...)
 }
 
 func ReadAvPairs(data []byte) *AvPairs {
