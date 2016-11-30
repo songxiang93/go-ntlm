@@ -59,7 +59,7 @@ func (n *V1Session) fetchResponseKeys() (err error) {
 }
 
 func (n *V1Session) computeExpectedResponses() (err error) {
-	//fmt.Printf("NT NTLMv1: %x\n", n.responseKeyNT)
+
 	if NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(n.NegotiateFlags) {
 		n.ntChallengeResponse, err = desL(n.responseKeyNT, md5(concat(n.serverChallenge, n.clientChallenge))[0:8])
 		if err != nil {
@@ -120,8 +120,23 @@ func (n *V1Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	return
 }
 
+func (n *V1Session) GetSequenceNumber() uint32 {
+	return n.sequenceNumber
+}
+func (n *V1Session) SetSequenceNumber(sequence uint32) {
+	n.sequenceNumber = sequence
+}
+
 //Seal returns the sealed message and signature
 func (n *V1Session) Seal(message []byte) ([]byte, []byte, error) {
+	//for now we are just doing client stuff
+	d, s := seal(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, message)
+	return d, s.Bytes(), nil
+
+}
+
+//SealV2 returns the sealed message and signature
+func (n *V1Session) SealV2(message []byte, messageToSign []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
 	d, s := seal(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, message)
 	return d, s.Bytes(), nil

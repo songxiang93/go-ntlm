@@ -44,12 +44,15 @@ type ClientSession interface {
 	SetMode(mode Mode)
 	SetNTHash(nthash []byte)
 	SetTarget(target string)
+	SetSequenceNumber(sequence uint32)
+	GetSequenceNumber() uint32
 	GenerateNegotiateMessage() (*NegotiateMessage, error)
 	ProcessChallengeMessage(*ChallengeMessage) error
 	GenerateAuthenticateMessage() (*AuthenticateMessage, error)
 	GenerateAuthenticateMessageAV() (*AuthenticateMessage, error)
 	Seal(message []byte) ([]byte, []byte, error)
 	Sign(message []byte) ([]byte, error)
+	SealV2(message []byte, messageToSign []byte) ([]byte, []byte, error)
 	Mac(message []byte, sequenceNumber int) ([]byte, error)
 	VerifyMac(message, expectedMac []byte, sequenceNumber int) (bool, error)
 }
