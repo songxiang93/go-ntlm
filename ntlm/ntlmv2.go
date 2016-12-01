@@ -44,8 +44,10 @@ func (n *V2Session) Version() int {
 }
 
 func (n *V2Session) SetNTHash(nthash []byte) {
-	concat := utf16FromString(strings.ToUpper(n.user) + n.userDomain)
-	n.responseKeyNT = hmacMd5(nthash, concat)
+	if len(nthash) > 0 {
+		concat := utf16FromString(strings.ToUpper(n.user) + n.userDomain)
+		n.responseKeyNT = hmacMd5(nthash, concat)
+	}
 }
 
 func (n *V2Session) fetchResponseKeys() (err error) {
