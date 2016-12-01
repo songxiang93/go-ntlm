@@ -135,6 +135,10 @@ func (n *V1Session) Seal(message []byte) ([]byte, []byte, error) {
 
 }
 
+func (n *V1Session) UnSeal(message []byte) ([]byte, error) {
+	return rc4(n.clientHandle, message), nil
+}
+
 //SealV2 returns the sealed message and signature
 func (n *V1Session) SealV2(message []byte, messageToSign []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff

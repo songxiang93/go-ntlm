@@ -51,6 +51,7 @@ type ClientSession interface {
 	GenerateAuthenticateMessage() (*AuthenticateMessage, error)
 	GenerateAuthenticateMessageAV() (*AuthenticateMessage, error)
 	Seal(message []byte) ([]byte, []byte, error)
+	UnSeal(message []byte) ([]byte, error)
 	Sign(message []byte) ([]byte, error)
 	SealV2(message []byte, messageToSign []byte) ([]byte, []byte, error)
 	Mac(message []byte, sequenceNumber int) ([]byte, error)

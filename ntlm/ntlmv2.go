@@ -117,17 +117,24 @@ func (n *V2Session) Seal(message []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
 	d, s := seal(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, message)
 	n.sequenceNumber++
-
 	return d, s.Bytes(), nil
+}
+
+func (n *V2Session) UnSeal(message []byte) ([]byte, error) {
+	//return rc4K(n.ServerSealingKey, message)
+	dec := rc4(n.serverHandle, message)
+	//move the stream along by calculating signature as well
+	NtlmV2Mac(message, int(n.sequenceNumber), n.serverHandle, n.ServerSealingKey, n.ServerSigningKey, n.NegotiateFlags)
+	return dec, nil
 }
 
 //SealV2 takes a message to seal and a message to sign. Returns each seperately. This is a requirement for DCERP
 func (n *V2Session) SealV2(messageToSeal []byte, messageToSign []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
 	sealedMessage := rc4(n.clientHandle, messageToSeal)
-	//signature := Mac(messageToSign, n.sequenceNumber) //mac(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, messageToSign)
-	//n.sequenceNumber++
-	return sealedMessage, nil, nil //signature.Bytes(), nil
+	signature := NtlmV2Mac(messageToSign, int(n.sequenceNumber), n.clientHandle, n.ClientSealingKey, n.ClientSigningKey, n.NegotiateFlags)
+	n.sequenceNumber++
+	return sealedMessage, signature, nil
 }
 
 //Sign returns the signing value of the message
