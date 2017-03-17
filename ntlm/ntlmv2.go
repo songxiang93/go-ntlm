@@ -379,21 +379,7 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 	n.serverChallenge = cm.ServerChallenge
 	n.clientChallenge = randomBytes(8)
 
-	flags := uint32(0)
-	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_NTLM.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_SEAL.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_SIGN.Set(flags)
-	flags = NTLMSSP_REQUEST_TARGET.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_UNICODE.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_TARGET_INFO.Set(flags)
-
-	n.NegotiateFlags = flags
+	n.NegotiateFlags = cm.NegotiateFlags
 
 	err = n.fetchResponseKeys()
 	if err != nil {
