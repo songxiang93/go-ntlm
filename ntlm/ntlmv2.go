@@ -79,7 +79,10 @@ func (n *V2Session) computeExpectedResponses(timestamp []byte, avPairBytes []byt
 	ntProofStr := hmacMd5(n.responseKeyNT, concat(n.serverChallenge, temp))                                                         //NTProofStr to HMAC_MD5(ResponseKeyNT,ConcatenationOf(CHALLENGE_MESSAGE.ServerChallenge,temp))
 	n.ntChallengeResponse = concat(ntProofStr, temp)                                                                                //ConcatenationOf(NTProofStr, temp)
 	//if MsvAvTimestamp is set, lmChallengeResponse should be Z(24)
-	v := ReadAvPairs(avPairBytes)
+        v, err := ReadAvPairs(avPairBytes)
+        if err != nil {
+                return err
+        }
 	if k := v.Find(MsvAvTimestamp); k != nil {
 		n.lmChallengeResponse = make([]byte, 24)
 	} else {
@@ -390,7 +393,10 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 
 	if n.mode == ConnectionOrientedMode {
 		//get current AvPairs
-		pairs := ReadAvPairs(cm.TargetInfoPayloadStruct.Payload)
+                pairs, err := ReadAvPairs(cm.TargetInfoPayloadStruct.Payload)
+                if err != nil {
+                        return err
+                }
 		//if TargetInfo has an MsvAvTimestamp present, the client SHOULD provide a MIC
 		if pairs.Find(MsvAvTimestamp) != nil {
 			if pl := pairs.Find(MsvAvFlags); pl != nil { //if MsAvFlags present, Value field, set bit 0x2 to 1
@@ -449,7 +455,11 @@ func (n *V2ClientSession) GenerateAuthenticateMessage() (am *AuthenticateMessage
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
-	am.Workstation, _ = CreateStringPayload("RULER")
+	// [Psiphon]
+	// Set a blank workstation value, which is less distinguishable than the previous hard-coded value.
+	// See also: https://github.com/Azure/go-ntlmssp/commit/5e29b886690f00c76b876ae9ab8e31e7c3509203.
+
+	am.Workstation, _ = CreateStringPayload("")
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Mic = make([]byte, 16)
@@ -465,7 +475,7 @@ func (n *V2ClientSession) GenerateAuthenticateMessageAV() (am *AuthenticateMessa
 	am.NtChallengeResponseFields, _ = CreateBytePayload(n.ntChallengeResponse)
 	am.DomainName, _ = CreateStringPayload(n.userDomain)
 	am.UserName, _ = CreateStringPayload(n.user)
-	am.Workstation, _ = CreateStringPayload("RULER")
+	am.Workstation, _ = CreateStringPayload("")
 	am.EncryptedRandomSessionKey, _ = CreateBytePayload(n.encryptedRandomSessionKey)
 	am.NegotiateFlags = n.NegotiateFlags
 	am.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: 0x0F}
