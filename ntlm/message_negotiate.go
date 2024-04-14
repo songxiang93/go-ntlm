@@ -5,12 +5,10 @@ package ntlm
 import (
 	"bytes"
 	"encoding/binary"
+        "errors"
 )
 
 type NegotiateMessage struct {
-	// All bytes of the message
-	//Bytes []byte
-
 	// sig - 8 bytes
 	Signature []byte //[]byte("NTLMSSP\00")
 	// message type - 4 bytes
@@ -28,19 +26,92 @@ type NegotiateMessage struct {
 	Version *VersionStruct
 	// payload - variable
 	Payload       []byte
-	PayloadOffset int
+}
+
+func ParseNegotiateMessage(body []byte) (*NegotiateMessage, error) {
+        if len(body) < 16 {
+                return nil, errors.New("Invalid NTLM negotiate message: message is too short.")
+        }
+
+        negotiate := new(NegotiateMessage)
+
+        negotiate.Signature = body[0:8]
+        if !bytes.Equal(negotiate.Signature, []byte("NTLMSSP\x00")) {
+                return negotiate, errors.New("Invalid NTLM message signature")
+        }
+
+        negotiate.MessageType = binary.LittleEndian.Uint32(body[8:12])
+        if negotiate.MessageType != 1 {
+                return negotiate, errors.New("Invalid NTLM message type should be 0x00000001 for negotiate message")
+        }
+
+        var err error
+
+        negotiate.NegotiateFlags = ReadNegotiateFlags(body[12:16])
+
+        if NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED.IsSet(negotiate.NegotiateFlags) {
+                negotiate.DomainNameFields, err = ReadOemPayload(16, body)
+                if err != nil {
+                        return nil, err
+                }
+        }
+
+        if NTLMSSP_NEGOTIATE_OEM_WORKSTATION_SUPPLIED.IsSet(negotiate.NegotiateFlags) {
+                negotiate.WorkstationFields, err = ReadOemPayload(24, body)
+                if err != nil {
+                        return nil, err
+                }
+        }
+
+        offset := 32
+
+        if NTLMSSP_NEGOTIATE_VERSION.IsSet(negotiate.NegotiateFlags) {
+
+                // [Psiphon]
+                // Don't panic on malformed remote input.
+                if len(body) < offset+8 {
+                        return nil, errors.New("Unvalid negotiate message")
+                }
+
+                negotiate.Version, err = ReadVersionStruct(body[offset : offset+8])
+                if err != nil {
+                        return nil, err
+                }
+                offset = offset + 8
+        }
+
+        negotiate.Payload = body[offset:]
+
+        return negotiate, nil
 }
 
 func (nm *NegotiateMessage) Bytes() []byte {
+        payloadLen := int(nm.DomainNameFields.Len + nm.WorkstationFields.Len)
+        messageLen := 40
+        payloadOffset := uint32(messageLen)
 
-	dest := make([]byte, 0, 40)
+        dest := make([]byte, 0, messageLen+payloadLen)
 	buffer := bytes.NewBuffer(dest)
+
 	buffer.Write(nm.Signature)
 	binary.Write(buffer, binary.LittleEndian, nm.MessageType)
-	buffer.Write(nm.NegotiateFlags.Bytes())
+        buffer.Write(nm.NegotiateFlags.Bytes())
+
+        nm.DomainNameFields.Offset = payloadOffset
+        payloadOffset += uint32(nm.DomainNameFields.Len)
 	buffer.Write(nm.DomainNameFields.Bytes())
+
+        nm.WorkstationFields.Offset = payloadOffset
+        payloadOffset += uint32(nm.WorkstationFields.Len)
 	buffer.Write(nm.WorkstationFields.Bytes())
+
 	buffer.Write(nm.Version.Bytes())
+
+        // Write out the payloads
+
+        buffer.Write(nm.DomainNameFields.Payload)
+        buffer.Write(nm.WorkstationFields.Payload)
+
 	return buffer.Bytes()
 }
 
