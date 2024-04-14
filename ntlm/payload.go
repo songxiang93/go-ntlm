@@ -70,8 +70,12 @@ func CreateStringPayload(value string) (*PayloadStruct, error) {
 	return p, nil
 }
 
-func ReadStringPayload(startByte int, bytes []byte) (*PayloadStruct, error) {
+func ReadUnicodePayload(startByte int, bytes []byte) (*PayloadStruct, error) {
 	return ReadPayloadStruct(startByte, bytes, UnicodeStringPayload)
+}
+
+func ReadOemPayload(startByte int, bytes []byte) (*PayloadStruct, error) {
+        return ReadPayloadStruct(startByte, bytes, OemStringPayload)
 }
 
 func ReadBytePayload(startByte int, bytes []byte) (*PayloadStruct, error) {

@@ -71,14 +71,14 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 		return challenge, errors.New("Invalid NTLM message type should be 0x00000002 for challenge message")
 	}
 
+	challenge.NegotiateFlags = ReadNegotiateFlags(body[20:24])
+
 	var err error
 
-	challenge.TargetName, err = ReadStringPayload(12, body)
+	challenge.TargetName, err = challenge.readStringPayload(12, body)
 	if err != nil {
 		return nil, err
 	}
-
-	challenge.NegotiateFlags = ReadNegotiateFlags(body[20:24])
 
 	challenge.ServerChallenge = body[24:32]
 
@@ -169,6 +169,16 @@ func (c *ChallengeMessage) getLowestPayloadOffset() int {
 	}
 
 	return lowest
+}
+
+func (c *ChallengeMessage) readStringPayload (startByte int, bytes []byte) (*PayloadStruct, error) {
+        if NTLMSSP_NEGOTIATE_UNICODE.IsSet(c.NegotiateFlags) {
+                return ReadUnicodePayload(startByte, bytes)
+        } else if NTLM_NEGOTIATE_OEM.IsSet(c.NegotiateFlags) {
+                return ReadOemPayload(startByte, bytes)
+        }
+
+        return nil, errors.New("no encoding specified")
 }
 
 func (c *ChallengeMessage) String() string {

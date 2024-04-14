@@ -103,17 +103,17 @@ func ParseAuthenticateMessage(body []byte, ntlmVersion int) (*AuthenticateMessag
 		return nil, err
 	}
 
-	am.DomainName, err = ReadStringPayload(28, body)
+	am.DomainName, err = ReadUnicodePayload(28, body)
 	if err != nil {
 		return nil, err
 	}
 
-	am.UserName, err = ReadStringPayload(36, body)
+	am.UserName, err = ReadUnicodePayload(36, body)
 	if err != nil {
 		return nil, err
 	}
 
-	am.Workstation, err = ReadStringPayload(44, body)
+	am.Workstation, err = ReadUnicodePayload(44, body)
 	if err != nil {
 		return nil, err
 	}
