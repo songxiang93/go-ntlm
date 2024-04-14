@@ -201,6 +201,7 @@ func (n *V2ClientSession) VerifyMac(message, expectedMac []byte, sequenceNumber 
 
 type V2ServerSession struct {
 	V2Session
+        ServerData
 }
 
 func (n *V2ServerSession) SetServerChallenge(challenge []byte) {
@@ -240,11 +241,11 @@ func (n *V2ServerSession) GenerateChallengeMessage() (cm *ChallengeMessage, err 
 
 	// Create the AvPairs we need
 	pairs := new(AvPairs)
-	pairs.AddAvPair(MsvAvNbDomainName, utf16FromString("REUTERS"))
-	pairs.AddAvPair(MsvAvNbComputerName, utf16FromString("UKBP-CBTRMFE06"))
-	pairs.AddAvPair(MsvAvDnsDomainName, utf16FromString("Reuters.net"))
-	pairs.AddAvPair(MsvAvDnsComputerName, utf16FromString("ukbp-cbtrmfe06.Reuters.net"))
-	pairs.AddAvPair(MsvAvDnsTreeName, utf16FromString("Reuters.net"))
+	pairs.AddAvPairString(MsvAvNbDomainName, n.domainName)
+	pairs.AddAvPairString(MsvAvNbComputerName, n.computerName)
+	pairs.AddAvPairString(MsvAvDnsDomainName, n.dnsDomainName)
+	pairs.AddAvPairString(MsvAvDnsComputerName, n.dnsComputerName)
+	pairs.AddAvPairString(MsvAvDnsTreeName, n.dnsTreeName)
 	pairs.AddAvPair(MsvAvEOL, make([]byte, 0))
 	cm.TargetInfo = pairs
 	cm.TargetInfoPayloadStruct, _ = CreateBytePayload(pairs.Bytes())

@@ -79,6 +79,12 @@ type ServerSession interface {
 	SetUserInfo(username string, password string, domain string)
 	GetUserInfo() (string, string, string)
 
+        SetComputerName(name string)
+        SetDomainName(domain string)
+        SetDnsComputerName(name string)
+        SetDnsDomainName(domain string)
+        SetDnsTreeName(tree string)
+
 	SetMode(mode Mode)
 	SetServerChallenge(challege []byte)
 
@@ -133,3 +139,32 @@ type SessionData struct {
 	sequenceNumber uint32
 	target         string
 }
+
+type ServerData struct {
+        computerName string
+        domainName string
+        dnsComputerName string
+        dnsDomainName string
+        dnsTreeName string
+}
+
+func (s *ServerData) SetComputerName(name string) {
+        s.computerName = name
+}
+
+func (s *ServerData) SetDomainName(domain string) {
+        s.domainName = domain
+}
+
+func (s *ServerData) SetDnsComputerName(name string) {
+        s.dnsComputerName = name
+}
+
+func (s *ServerData) SetDnsDomainName(domain string) {
+        s.dnsDomainName = domain
+}
+
+func (s *ServerData) SetDnsTreeName(tree string) {
+        s.dnsTreeName = tree
+}
+

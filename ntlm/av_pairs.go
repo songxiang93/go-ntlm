@@ -77,6 +77,10 @@ func (p *AvPairs) AddAvPairPos(pos int, avId AvPairType, bytes []byte) {
 	p.List = append(p.List[:pos], append([]AvPair{*a}, p.List[pos:]...)...)
 }
 
+func (p *AvPairs) AddAvPairString(avId AvPairType, value string) {
+        p.AddAvPair(avId, utf16FromString(value))
+}
+
 func ReadAvPairs(data []byte) (*AvPairs, error) {
 	pairs := new(AvPairs)
 

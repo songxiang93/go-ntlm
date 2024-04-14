@@ -193,6 +193,7 @@ func (n *V1ClientSession) VerifyMac(message, expectedMac []byte, sequenceNumber 
 
 type V1ServerSession struct {
 	V1Session
+        ServerData
 }
 
 func (n *V1ServerSession) ProcessNegotiateMessage(nm *NegotiateMessage) (err error) {
