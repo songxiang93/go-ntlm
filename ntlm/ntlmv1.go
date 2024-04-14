@@ -250,7 +250,7 @@ func (n *V1ServerSession) ProcessAuthenticateMessage(am *AuthenticateMessage) (e
 		// to compare the lmChallengeResponse if the ntChallengeRepsonse fails, but with extended session security
 		// this would *always* pass because the lmChallengeResponse and expectedLmChallengeRepsonse will always
 		// be the same
-		if !bytes.Equal(am.LmChallengeResponse.Payload, n.lmChallengeResponse) || NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(n.NegotiateFlags) {
+		if n.requireNtHash || !bytes.Equal(am.LmChallengeResponse.Payload, n.lmChallengeResponse) || NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(n.NegotiateFlags) {
 			return errors.New("Could not authenticate")
 		}
 	}

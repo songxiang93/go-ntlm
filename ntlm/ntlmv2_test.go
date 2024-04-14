@@ -158,6 +158,211 @@ func TestNTLMv2(t *testing.T) {
 	// }
 }
 
+func TestNTLMv2NormalFlow(t *testing.T) {
+        client := new(V2ClientSession)
+        client.SetUserInfo("User", "Password", "Domain")
+        
+        server := new(V2ServerSession)
+        server.SetUserInfo("User", "Password", "Domain")
+
+        negotiate, err := client.GenerateNegotiateMessage()
+        if err != nil {
+                t.Errorf("Could not generate negotiate message: %s", err)
+                return
+        }
+        
+        server.ProcessNegotiateMessage(negotiate)
+        challenge, err := server.GenerateChallengeMessage()
+        if err != nil {
+                t.Errorf("Could not generate challenge message: %s", err)
+                return
+        }
+        
+        client.ProcessChallengeMessage(challenge)
+        authenticateOut, err := client.GenerateAuthenticateMessage()
+        if err != nil {
+                t.Errorf("Could not generate authenticate message: %s", err)
+                return
+        }
+        
+        authenticateIn, err := ParseAuthenticateMessage(authenticateOut.Bytes(), 2)
+        if err != nil {
+                t.Errorf("Could not parse authenticate message: %s", err)
+                return
+        }
+        
+        err = server.ProcessAuthenticateMessage(authenticateIn)
+        if err != nil {
+                t.Errorf("Failed to authenticate: %s", err)
+                return
+        }
+}
+
+func TestNTLMv2WrongPassword(t *testing.T) {
+        client := new(V2ClientSession)
+        client.SetUserInfo("User", "Password", "Domain")
+        
+        server := new(V2ServerSession)
+        server.SetUserInfo("User", "Password2", "Domain")
+
+        negotiate, err := client.GenerateNegotiateMessage()
+        if err != nil {
+                t.Errorf("Could not generate negotiate message: %s", err)
+                return
+        }
+        
+        server.ProcessNegotiateMessage(negotiate)
+        challenge, err := server.GenerateChallengeMessage()
+        if err != nil {
+                t.Errorf("Could not generate challenge message: %s", err)
+                return
+        }
+        
+        client.ProcessChallengeMessage(challenge)
+        authenticateOut, err := client.GenerateAuthenticateMessage()
+        if err != nil {
+                t.Errorf("Could not generate authenticate message: %s", err)
+                return
+        }
+        
+        authenticateIn, err := ParseAuthenticateMessage(authenticateOut.Bytes(), 2)
+        if err != nil {
+                t.Errorf("Could not parse authenticate message: %s", err)
+                return
+        }
+        
+        err = server.ProcessAuthenticateMessage(authenticateIn)
+        if err == nil {
+                t.Errorf("Authentication succeeded with wrong password: %s", err)
+                return
+        }
+}
+
+func TestNTLMv2AvTimestamp(t *testing.T) {
+        client := new(V2ClientSession)
+        client.SetUserInfo("User", "Password", "Domain")
+        
+        server := new(V2ServerSession)
+        server.SetUserInfo("User", "Password2", "Domain")
+
+        negotiate, err := client.GenerateNegotiateMessage()
+        if err != nil {
+                t.Errorf("Could not generate negotiate message: %s", err)
+                return
+        }
+        
+        server.ProcessNegotiateMessage(negotiate)
+        challenge, err := server.GenerateChallengeMessage()
+        if err != nil {
+                t.Errorf("Could not generate challenge message: %s", err)
+                return
+        }
+        
+        challenge.TargetInfo.PrependAvPairString(MsvAvTimestamp, "0")
+        
+        client.ProcessChallengeMessage(challenge)
+        authenticateOut, err := client.GenerateAuthenticateMessage()
+        if err != nil {
+                t.Errorf("Could not generate authenticate message: %s", err)
+                return
+        }
+        
+        authenticateIn, err := ParseAuthenticateMessage(authenticateOut.Bytes(), 2)
+        if err != nil {
+                t.Errorf("Could not parse authenticate message: %s", err)
+                return
+        }
+        
+        err = server.ProcessAuthenticateMessage(authenticateIn)
+        if err == nil {
+                t.Errorf("Authentication succeeded with wrong password")
+                return
+        }
+}
+
+func TestNTLMv2LMOnly(t *testing.T) {
+        client := new(V2ClientSession)
+        client.SetUserInfo("User", "Password", "Domain")
+        
+        server := new(V2ServerSession)
+        server.SetUserInfo("User", "Password", "Domain")
+
+        negotiate, err := client.GenerateNegotiateMessage()
+        if err != nil {
+                t.Errorf("Could not generate negotiate message: %s", err)
+                return
+        }
+        
+        server.ProcessNegotiateMessage(negotiate)
+        challenge, err := server.GenerateChallengeMessage()
+        if err != nil {
+                t.Errorf("Could not generate challenge message: %s", err)
+                return
+        }
+        
+        client.ProcessChallengeMessage(challenge)
+        client.ntChallengeResponse[0] = client.ntChallengeResponse[0]+1 // make NT Hash invalid (but well formed)
+        authenticateOut, err := client.GenerateAuthenticateMessage()
+        if err != nil {
+                t.Errorf("Could not generate authenticate message: %s", err)
+                return
+        }
+        
+        authenticateIn, err := ParseAuthenticateMessage(authenticateOut.Bytes(), 2)
+        if err != nil {
+                t.Errorf("Could not parse authenticate message: %s", err)
+                return
+        }
+        
+        err = server.ProcessAuthenticateMessage(authenticateIn)
+        if err != nil {
+                t.Errorf("Failed to authenticate: %s", err)
+                return
+        }
+}
+
+func TestNTLMv2LMOnlyRequireNt(t *testing.T) {
+        client := new(V2ClientSession)
+        client.SetUserInfo("User", "Password", "Domain")
+        
+        server := new(V2ServerSession)
+        server.SetUserInfo("User", "Password", "Domain")
+        server.SetRequireNtHash(true)
+
+        negotiate, err := client.GenerateNegotiateMessage()
+        if err != nil {
+                t.Errorf("Could not generate negotiate message: %s", err)
+                return
+        }
+        
+        server.ProcessNegotiateMessage(negotiate)
+        challenge, err := server.GenerateChallengeMessage()
+        if err != nil {
+                t.Errorf("Could not generate challenge message: %s", err)
+                return
+        }
+        
+        client.ProcessChallengeMessage(challenge)
+        client.ntChallengeResponse[0] = client.ntChallengeResponse[0]+1 // make NT Hash invalid (but well formed)
+        authenticateOut, err := client.GenerateAuthenticateMessage()
+        if err != nil {
+                t.Errorf("Could not generate authenticate message: %s", err)
+                return
+        }
+        
+        authenticateIn, err := ParseAuthenticateMessage(authenticateOut.Bytes(), 2)
+        if err != nil {
+                t.Errorf("Could not parse authenticate message: %s", err)
+                return
+        }
+        
+        err = server.ProcessAuthenticateMessage(authenticateIn)
+        if err == nil {
+                t.Errorf("Authentication succeeded with invalid NT hash, although server is configured to require valid NT hash")
+                return
+        }
+}
+
 func TestNTLMv2WithDomain(t *testing.T) {
 	authenticateMessage := "TlRMTVNTUAADAAAAGAAYALYAAADSANIAzgAAADQANABIAAAAIAAgAHwAAAAaABoAnAAAABAAEACgAQAAVYKQQgUCzg4AAAAPYQByAHIAYQB5ADEAMgAuAG0AcwBnAHQAcwB0AC4AcgBlAHUAdABlAHIAcwAuAGMAbwBtAHUAcwBlAHIAcwB0AHIAZQBzAHMAMQAwADAAMAAwADgATgBZAEMAVgBBADEAMgBTADIAQwBNAFMAQQBPYrLjU4h0YlWZeEoNvTJtBQMnnJuAeUwsP+vGmAHNRBpgZ+4ChQLqAQEAAAAAAACPFEIFjx7OAQUDJ5ybgHlMAAAAAAIADgBSAEUAVQBUAEUAUgBTAAEAHABVAEsAQgBQAC0AQwBCAFQAUgBNAEYARQAwADYABAAWAFIAZQB1AHQAZQByAHMALgBuAGUAdAADADQAdQBrAGIAcAAtAGMAYgB0AHIAbQBmAGUAMAA2AC4AUgBlAHUAdABlAHIAcwAuAG4AZQB0AAUAFgBSAGUAdQB0AGUAcgBzAC4AbgBlAHQAAAAAAAAAAAANuvnqD3K88ZpjkLleL0NW"
 

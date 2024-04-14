@@ -81,6 +81,15 @@ func (p *AvPairs) AddAvPairString(avId AvPairType, value string) {
         p.AddAvPair(avId, utf16FromString(value))
 }
 
+func (p *AvPairs) PrependAvPair(avId AvPairType, bytes []byte) {
+	a := &AvPair{AvId: avId, AvLen: uint16(len(bytes)), Value: bytes}
+	p.List = append([]AvPair{*a}, p.List...)
+}
+
+func (p *AvPairs) PrependAvPairString(avId AvPairType, value string) {
+        p.PrependAvPair(avId, utf16FromString(value))
+}
+
 func ReadAvPairs(data []byte) (*AvPairs, error) {
 	pairs := new(AvPairs)
 

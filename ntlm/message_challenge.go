@@ -44,7 +44,6 @@ type ChallengeMessage struct {
 	Reserved []byte
 
 	// targetinfo  - 12 bytes
-	TargetInfoPayloadStruct *PayloadStruct
 	TargetInfo              *AvPairs
 
 	// version - 8 bytes
@@ -84,12 +83,12 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 
 	challenge.Reserved = body[32:40]
 
-	challenge.TargetInfoPayloadStruct, err = ReadBytePayload(40, body)
+	targetInfoPayloadStruct, err := ReadBytePayload(40, body)
 	if err != nil {
 		return nil, err
 	}
 
-	challenge.TargetInfo, err = ReadAvPairs(challenge.TargetInfoPayloadStruct.Payload)
+	challenge.TargetInfo, err = ReadAvPairs(targetInfoPayloadStruct.Payload)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +120,9 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 }
 
 func (c *ChallengeMessage) Bytes() []byte {
-	payloadLen := int(c.TargetName.Len + c.TargetInfoPayloadStruct.Len)
+        targetInfoPayloadStruct, _ := CreateBytePayload(c.TargetInfo.Bytes())
+
+	payloadLen := int(c.TargetName.Len + targetInfoPayloadStruct.Len)
 	messageLen := 8 + 4 + 8 + 4 + 8 + 8 + 8 + 8
 	payloadOffset := uint32(messageLen)
 
@@ -139,9 +140,9 @@ func (c *ChallengeMessage) Bytes() []byte {
 	buffer.Write(c.ServerChallenge)
 	buffer.Write(make([]byte, 8))
 
-	c.TargetInfoPayloadStruct.Offset = payloadOffset
-	buffer.Write(c.TargetInfoPayloadStruct.Bytes())
-	payloadOffset += uint32(c.TargetInfoPayloadStruct.Len)
+	targetInfoPayloadStruct.Offset = payloadOffset
+	buffer.Write(targetInfoPayloadStruct.Bytes())
+	payloadOffset += uint32(targetInfoPayloadStruct.Len)
 
 	// if(c.Version != nil) {
 	buffer.Write(c.Version.Bytes())
@@ -151,24 +152,9 @@ func (c *ChallengeMessage) Bytes() []byte {
 
 	// Write out the payloads
 	buffer.Write(c.TargetName.Payload)
-	buffer.Write(c.TargetInfoPayloadStruct.Payload)
+	buffer.Write(targetInfoPayloadStruct.Payload)
 
 	return buffer.Bytes()
-}
-
-func (c *ChallengeMessage) getLowestPayloadOffset() int {
-	payloadStructs := [...]*PayloadStruct{c.TargetName, c.TargetInfoPayloadStruct}
-
-	// Find the lowest offset value
-	lowest := 9999
-	for i := range payloadStructs {
-		p := payloadStructs[i]
-		if p != nil && p.Offset > 0 && int(p.Offset) < lowest {
-			lowest = int(p.Offset)
-		}
-	}
-
-	return lowest
 }
 
 func (c *ChallengeMessage) readStringPayload (startByte int, bytes []byte) (*PayloadStruct, error) {
@@ -185,7 +171,6 @@ func (c *ChallengeMessage) String() string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("Challenge NTLM Message")
-	buffer.WriteString(fmt.Sprintf("\nPayload Offset: %d Length: %d", c.getLowestPayloadOffset(), len(c.Payload)))
 	buffer.WriteString(fmt.Sprintf("\nTargetName: %s", c.TargetName.String()))
 	buffer.WriteString(fmt.Sprintf("\nServerChallenge: %s", hex.EncodeToString(c.ServerChallenge)))
 	if c.Version != nil {

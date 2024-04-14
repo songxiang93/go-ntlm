@@ -74,20 +74,12 @@ func (n *V2Session) SetSequenceNumber(sequence uint32) {
 
 // Define ComputeResponse(NegFlg, ResponseKeyNT, ResponseKeyLM, CHALLENGE_MESSAGE.ServerChallenge, ClientChallenge, Time, ServerName)
 // ServerNameBytes - The NtChallengeResponseFields.NTLMv2_RESPONSE.NTLMv2_CLIENT_CHALLENGE.AvPairs field structure of the AUTHENTICATE_MESSAGE payload.
-func (n *V2Session) computeExpectedResponses(timestamp []byte, avPairBytes []byte) (err error) {
+func (n *V2Session) computeExpectedResponsesBase(timestamp []byte, avPairs *AvPairs) (err error) {
+	avPairBytes := avPairs.Bytes()
 	temp := concat([]byte{0x01}, []byte{0x01}, zeroBytes(6), timestamp, n.clientChallenge, zeroBytes(4), avPairBytes, zeroBytes(4)) //ConcatenationOf(Responserversion, HiResponserversion,Z(6), Time, ClientChallenge, Z(4), ServerName, Z(4))
 	ntProofStr := hmacMd5(n.responseKeyNT, concat(n.serverChallenge, temp))                                                         //NTProofStr to HMAC_MD5(ResponseKeyNT,ConcatenationOf(CHALLENGE_MESSAGE.ServerChallenge,temp))
 	n.ntChallengeResponse = concat(ntProofStr, temp)                                                                                //ConcatenationOf(NTProofStr, temp)
-	//if MsvAvTimestamp is set, lmChallengeResponse should be Z(24)
-        v, err := ReadAvPairs(avPairBytes)
-        if err != nil {
-                return err
-        }
-	if k := v.Find(MsvAvTimestamp); k != nil {
-		n.lmChallengeResponse = make([]byte, 24)
-	} else {
-		n.lmChallengeResponse = concat(hmacMd5(n.responseKeyNT, concat(n.serverChallenge, n.clientChallenge)), n.clientChallenge)
-	}
+	n.lmChallengeResponse = concat(hmacMd5(n.responseKeyNT, concat(n.serverChallenge, n.clientChallenge)), n.clientChallenge)
 	n.sessionBaseKey = hmacMd5(n.responseKeyNT, ntProofStr) //HMAC_MD5(ResponseKeyNT, NTProofStr)
 	return err
 }
@@ -104,7 +96,7 @@ func (n *V2Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	// We must treat the flags as if NTLMSSP_NEGOTIATE_LM_KEY is set.
 	// This information is not contained (at least currently, until they correct it) in the MS-NLMP document
 	if ntlmRevisionCurrent == 15 {
-		//n.NegotiateFlags = NTLMSSP_NEGOTIATE_LM_KEY.Set(n.NegotiateFlags)
+		n.NegotiateFlags = NTLMSSP_NEGOTIATE_LM_KEY.Set(n.NegotiateFlags)
 	}
 
 	n.ClientSigningKey = signKey(n.NegotiateFlags, n.exportedSessionKey, "Client")
@@ -248,9 +240,9 @@ func (n *V2ServerSession) GenerateChallengeMessage() (cm *ChallengeMessage, err 
 	pairs.AddAvPairString(MsvAvDnsTreeName, n.dnsTreeName)
 	pairs.AddAvPair(MsvAvEOL, make([]byte, 0))
 	cm.TargetInfo = pairs
-	cm.TargetInfoPayloadStruct, _ = CreateBytePayload(pairs.Bytes())
 
 	cm.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: uint8(15)}
+        n.challengeMessage = cm
 	return cm, nil
 }
 
@@ -271,17 +263,17 @@ func (n *V2ServerSession) ProcessAuthenticateMessage(am *AuthenticateMessage) (e
 	}
 
 	timestamp := am.NtlmV2Response.NtlmV2ClientChallenge.TimeStamp
-	avPairsBytes := am.NtlmV2Response.NtlmV2ClientChallenge.AvPairs.Bytes()
+	avPairs := am.NtlmV2Response.NtlmV2ClientChallenge.AvPairs
 
-	err = n.computeExpectedResponses(timestamp, avPairsBytes)
+	err = n.computeExpectedResponses(timestamp, avPairs)
 	if err != nil {
 		return err
 	}
 
 	if !bytes.Equal(am.NtChallengeResponseFields.Payload, n.ntChallengeResponse) {
-		if !bytes.Equal(am.LmChallengeResponse.Payload, n.lmChallengeResponse) {
+                if n.requireNtHash || !bytes.Equal(am.LmChallengeResponse.Payload, n.lmChallengeResponse) {
 			return errors.New("Could not authenticate")
-		}
+                }
 	}
 
 	err = n.computeKeyExchangeKey()
@@ -336,6 +328,10 @@ func (n *V2ServerSession) computeExportedSessionKey() (err error) {
 		// n.calculatedMic = HmacMd5(n.keyExchangeKey, concat(n.challengeMessage.Payload, n.authenticateMessage.Bytes))
 	}
 	return nil
+}
+
+func (n *V2ServerSession) computeExpectedResponses(timestamp []byte, avPairs *AvPairs) (err error) {
+        return n.computeExpectedResponsesBase(timestamp, avPairs)
 }
 
 /*************
@@ -394,7 +390,7 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 
 	if n.mode == ConnectionOrientedMode {
 		//get current AvPairs
-                pairs, err := ReadAvPairs(cm.TargetInfoPayloadStruct.Payload)
+                pairs := cm.TargetInfo
                 if err != nil {
                         return err
                 }
@@ -412,12 +408,12 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 		pairs.AddAvPairPos(len(pairs.List)-1, MsvAvTargetName, utf16FromString(n.target))
 		pairs.AddAvPair(MsvAvEOL, make([]byte, 0))
 
-		err = n.computeExpectedResponses(timestamp, pairs.Bytes())
+		err = n.computeExpectedResponses(timestamp, pairs)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = n.computeExpectedResponses(timestamp, cm.TargetInfoPayloadStruct.Payload)
+		err = n.computeExpectedResponses(timestamp, cm.TargetInfo)
 		if err != nil {
 			return err
 		}
@@ -501,6 +497,16 @@ func (n *V2ClientSession) computeEncryptedSessionKey() (err error) {
 		n.exportedSessionKey = n.keyExchangeKey
 	}
 	return nil
+}
+
+func (n *V2Session) computeExpectedResponses(timestamp []byte, avPairs *AvPairs) (err error) {
+        err = n.computeExpectedResponsesBase(timestamp, avPairs)
+        //if MsvAvTimestamp is set, lmChallengeResponse should be Z(24)
+        v := avPairs
+	if k := v.Find(MsvAvTimestamp); k != nil {
+		n.lmChallengeResponse = make([]byte, 24)
+	}
+	return err
 }
 
 /********************************

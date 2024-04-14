@@ -33,8 +33,9 @@ authenticate := session.GenerateAuthenticateMessage()
 ## Sample Usage as NTLM Server
 
 ```go
-session, err := ntlm.CreateServerSession(ntlm.Version1, ntlm.ConnectionlessMode)
+session, err := ntlm.CreateServerSession(ntlm.Version2, ntlm.ConnectionlessMode)
 session.SetUserInfo("someuser","somepassword","somedomain")
+session.SetRequireNtHash(true) // enforce the use of the more secure Nt hash (instead of the accepting the old LM hash)
 
 challenge := session.GenerateChallengeMessage()
 

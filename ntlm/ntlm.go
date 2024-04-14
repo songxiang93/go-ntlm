@@ -86,6 +86,7 @@ type ServerSession interface {
         SetDnsTreeName(tree string)
 
 	SetMode(mode Mode)
+        SetRequireNtHash (requireNt bool)
 	SetServerChallenge(challege []byte)
 
 	ProcessNegotiateMessage(*NegotiateMessage) error
@@ -141,11 +142,17 @@ type SessionData struct {
 }
 
 type ServerData struct {
+	requireNtHash bool
+
         computerName string
         domainName string
         dnsComputerName string
         dnsDomainName string
         dnsTreeName string
+}
+
+func (s *ServerData) SetRequireNtHash(requireNt bool) {
+        s.requireNtHash = requireNt
 }
 
 func (s *ServerData) SetComputerName(name string) {

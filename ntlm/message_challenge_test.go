@@ -43,7 +43,8 @@ func TestDecodeChallenge(t *testing.T) {
 		t.Error("Version information is not correct: '" + challenge.Version.String() + "'")
 	}
 
-	if len(challenge.Payload) != int(challenge.TargetInfoPayloadStruct.Len) {
+        targetInfoPayloadStruct, _ := CreateBytePayload(challenge.TargetInfo.Bytes())
+	if len(challenge.Payload) != int(targetInfoPayloadStruct.Len) {
 		t.Error("Payload length is not long enough")
 	}
 
