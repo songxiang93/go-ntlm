@@ -118,7 +118,7 @@ func ReadNtlmV2Response(bytes []byte) (*NtlmV2Response, error) {
 	// Ignoring - 4 bytes reserved
 	// c.Reserved3
 	var err error
-	c.AvPairs, err = ReadAvPairs(bytes[44:])
+	c.AvPairs, err = ReadAvPairs(bytes[44:len(bytes)-4]) // last 4 bytes are reserved: see section 3.3.2
 	if err != nil {
 		return nil, err
 	}

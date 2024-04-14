@@ -45,6 +45,7 @@ const (
 // Helper struct that contains a list of AvPairs with helper methods for running through them
 type AvPairs struct {
 	List []AvPair
+        Reserved []byte
 }
 
 type SingleHostData struct {
@@ -89,6 +90,7 @@ func ReadAvPairs(data []byte) (*AvPairs, error) {
 		offset = offset + 4 + int(pair.AvLen)
 		pairs.List = append(pairs.List, *pair)
 		if pair.AvId == MsvAvEOL {
+                        pairs.Reserved = data[offset:]
 			break
 		}
 	}
@@ -102,12 +104,15 @@ func (p *AvPairs) Bytes() (result []byte) {
 		a := p.List[i]
 		totalLength = totalLength + int(a.AvLen) + 4
 	}
+        totalLength = totalLength + len(p.Reserved)
 
 	result = make([]byte, 0, totalLength)
 	for i := range p.List {
 		a := p.List[i]
 		result = append(result, a.Bytes()...)
 	}
+
+        result = append(result, p.Reserved...)
 
 	return result
 }
@@ -121,6 +126,8 @@ func (p *AvPairs) String() string {
 		buffer.WriteString(p.List[i].String())
 		buffer.WriteString("\n")
 	}
+
+        buffer.WriteString(fmt.Sprintf("Reserved: %x", p.Reserved));
 
 	return buffer.String()
 }
