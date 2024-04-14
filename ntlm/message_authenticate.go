@@ -39,7 +39,7 @@ type AuthenticateMessage struct {
 	// conclusion of negotiation—the choices the client has made from the options the server offered in the CHALLENGE_MESSAGE.
 	// In connection-oriented mode, a NEGOTIATE structure that contains the set of bit flags (section 2.2.2.5) negotiated in
 	// the previous
-	NegotiateFlags uint32 // 4 bytes
+	NegotiateFlags NegotiateFlags // 4 bytes
 
 	// Version (8 bytes): A VERSION structure (section 2.2.2.10) that is present only when the NTLMSSP_NEGOTIATE_VERSION
 	// flag is set in the NegotiateFlags field. This structure is used for debugging purposes only. In normal protocol
@@ -137,7 +137,7 @@ func ParseAuthenticateMessage(body []byte, ntlmVersion int) (*AuthenticateMessag
 		if len(body) < offset+4 {
 			return nil, errors.New("invalid authenticate message")
 		}
-		am.NegotiateFlags = binary.LittleEndian.Uint32(body[offset : offset+4])
+		am.NegotiateFlags = ReadNegotiateFlags(body[offset : offset+4])
 		offset = offset + 4
 
 		// Version (8 bytes): A VERSION structure (section 2.2.2.10) that is present only when the NTLMSSP_NEGOTIATE_VERSION flag is set in the NegotiateFlags field. This structure is used for debugging purposes only. In normal protocol messages, it is ignored and does not affect the NTLM message processing.<9>
@@ -245,7 +245,7 @@ func (a *AuthenticateMessage) Bytes() []byte {
 	payloadOffset += uint32(a.EncryptedRandomSessionKey.Len)
 	buffer.Write(a.EncryptedRandomSessionKey.Bytes())
 
-	buffer.Write(uint32ToBytes(a.NegotiateFlags))
+	buffer.Write(a.NegotiateFlags.Bytes())
 
 	if a.Version != nil {
 		buffer.Write(a.Version.Bytes())

@@ -67,7 +67,7 @@ func TestNtlmV1ExtendedSessionSecurity(t *testing.T) {
 }
 
 func TestNtlmV1(t *testing.T) {
-	flags := uint32(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
@@ -172,7 +172,7 @@ func TestNtlmV1(t *testing.T) {
 }
 
 func TestNTLMv1WithClientChallenge(t *testing.T) {
-	flags := uint32(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)

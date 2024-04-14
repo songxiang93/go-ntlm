@@ -29,7 +29,7 @@ func TestDecodeChallenge(t *testing.T) {
 		t.Error("Failed to parse Target Name in challenge: " + values)
 	}
 
-	if challenge.NegotiateFlags != uint32(3801645811) {
+        if challenge.NegotiateFlags != NegotiateFlags(3801645811) {
 		t.Errorf("Challenge negotiate flags not correct should be %v got %d", uint32(3801645811), challenge.NegotiateFlags)
 	}
 

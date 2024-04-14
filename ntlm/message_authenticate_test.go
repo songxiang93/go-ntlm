@@ -79,7 +79,7 @@ func TestAuthenticateNtlmV2(t *testing.T) {
 	checkPayloadStruct(t, a.Workstation, 22, 120)
 	checkPayloadStruct(t, a.EncryptedRandomSessionKey, 16, 428)
 
-	if a.NegotiateFlags != uint32(1116766805) {
+	if a.NegotiateFlags != NegotiateFlags(1116766805) {
 		t.Errorf("Authenticate negotiate flags not correct should be %d got %d", uint32(1116766805), a.NegotiateFlags)
 	}
 

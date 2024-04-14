@@ -16,7 +16,7 @@ type NegotiateMessage struct {
 	// message type - 4 bytes
 	MessageType uint32 //010000
 	// negotiate flags - 4bytes
-	NegotiateFlags uint32
+        NegotiateFlags NegotiateFlags
 	// If the NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED flag is not set in NegotiateFlags,
 	// indicating that no DomainName is supplied in Payload  - then this should have Len 0 / MaxLen 0
 	// this contains a domain name
@@ -37,7 +37,7 @@ func (nm *NegotiateMessage) Bytes() []byte {
 	buffer := bytes.NewBuffer(dest)
 	buffer.Write(nm.Signature)
 	binary.Write(buffer, binary.LittleEndian, nm.MessageType)
-	buffer.Write(uint32ToBytes(nm.NegotiateFlags))
+	buffer.Write(nm.NegotiateFlags.Bytes())
 	buffer.Write(nm.DomainNameFields.Bytes())
 	buffer.Write(nm.WorkstationFields.Bytes())
 	buffer.Write(nm.Version.Bytes())

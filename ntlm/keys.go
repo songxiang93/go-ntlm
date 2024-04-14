@@ -3,7 +3,7 @@
 package ntlm
 
 // Define KXKEY(SessionBaseKey, LmChallengeResponse, ServerChallenge) as
-func kxKey(flags uint32, sessionBaseKey []byte, lmChallengeResponse []byte, serverChallenge []byte, lmnowf []byte) (keyExchangeKey []byte, err error) {
+func kxKey(flags NegotiateFlags, sessionBaseKey []byte, lmChallengeResponse []byte, serverChallenge []byte, lmnowf []byte) (keyExchangeKey []byte, err error) {
 	if NTLMSSP_NEGOTIATE_LM_KEY.IsSet(flags) {
 		var part1, part2 []byte
 		part1, err = des(lmnowf[0:7], lmChallengeResponse[0:8])
@@ -28,7 +28,7 @@ func kxKey(flags uint32, sessionBaseKey []byte, lmChallengeResponse []byte, serv
 }
 
 // Define SIGNKEY(NegFlg, RandomSessionKey, Mode) as
-func signKey(flags uint32, randomSessionKey []byte, mode string) (signKey []byte) {
+func signKey(flags NegotiateFlags, randomSessionKey []byte, mode string) (signKey []byte) {
 	if NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(flags) {
 		if mode == "Client" {
 			signKey = md5(concat(randomSessionKey, []byte("session key to client-to-server signing key magic constant\x00")))
@@ -42,7 +42,7 @@ func signKey(flags uint32, randomSessionKey []byte, mode string) (signKey []byte
 }
 
 // 	Define SEALKEY(NegotiateFlags, RandomSessionKey, Mode) as
-func sealKey(flags uint32, randomSessionKey []byte, mode string) (sealKey []byte) {
+func sealKey(flags NegotiateFlags, randomSessionKey []byte, mode string) (sealKey []byte) {
 	if NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(flags) {
 		if NTLMSSP_NEGOTIATE_128.IsSet(flags) {
 			sealKey = randomSessionKey

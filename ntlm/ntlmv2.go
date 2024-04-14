@@ -148,7 +148,7 @@ func (n *V2Session) Sign(message []byte) ([]byte, error) {
 }
 
 //Mildly ghetto that we expose this
-func NtlmVCommonMac(message []byte, sequenceNumber int, sealingKey, signingKey []byte, NegotiateFlags uint32) []byte {
+func NtlmVCommonMac(message []byte, sequenceNumber int, sealingKey, signingKey []byte, NegotiateFlags NegotiateFlags) []byte {
 	var handle *rc4P.Cipher
 	// TODO: Need to keep track of the sequence number for connection oriented NTLM
 	if NTLMSSP_NEGOTIATE_DATAGRAM.IsSet(NegotiateFlags) && NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(NegotiateFlags) {
@@ -162,7 +162,7 @@ func NtlmVCommonMac(message []byte, sequenceNumber int, sealingKey, signingKey [
 	return sig.Bytes()
 }
 
-func NtlmV2Mac(message []byte, sequenceNumber int, handle *rc4P.Cipher, sealingKey, signingKey []byte, NegotiateFlags uint32) []byte {
+func NtlmV2Mac(message []byte, sequenceNumber int, handle *rc4P.Cipher, sealingKey, signingKey []byte, NegotiateFlags NegotiateFlags) []byte {
 	// TODO: Need to keep track of the sequence number for connection oriented NTLM
 	if NTLMSSP_NEGOTIATE_DATAGRAM.IsSet(NegotiateFlags) && NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(NegotiateFlags) {
 		handle, _ = reinitSealingKey(sealingKey, sequenceNumber)
@@ -218,10 +218,10 @@ func (n *V2ServerSession) GenerateChallengeMessage() (cm *ChallengeMessage, err 
 	cm.MessageType = uint32(2)
 	cm.TargetName, _ = CreateBytePayload(make([]byte, 0))
 
-	flags := uint32(0)
+        flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
-	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
+        flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_TARGET_INFO.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
@@ -346,7 +346,7 @@ type V2ClientSession struct {
 }
 
 func (n *V2ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err error) {
-	flags := uint32(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)

@@ -18,7 +18,7 @@ type ChallengeMessage struct {
 	// targetname - 12 bytes
 	TargetName *PayloadStruct
 	// negotiate flags - 4bytes
-	NegotiateFlags uint32
+	NegotiateFlags NegotiateFlags
 	// server challenge - 8 bytes
 	ServerChallenge []byte
 
@@ -78,7 +78,7 @@ func ParseChallengeMessage(body []byte) (*ChallengeMessage, error) {
 		return nil, err
 	}
 
-	challenge.NegotiateFlags = binary.LittleEndian.Uint32(body[20:24])
+	challenge.NegotiateFlags = ReadNegotiateFlags(body[20:24])
 
 	challenge.ServerChallenge = body[24:32]
 

@@ -103,7 +103,7 @@ type SessionData struct {
 	password   string
 	userDomain string
 
-	NegotiateFlags uint32
+        NegotiateFlags NegotiateFlags
 
 	negotiateMessage    *NegotiateMessage
 	challengeMessage    *ChallengeMessage

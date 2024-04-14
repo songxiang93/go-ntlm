@@ -35,18 +35,18 @@ func (n *NtlmsspMessageSignature) Bytes() []byte {
 }
 
 // Define SEAL(Handle, SigningKey, SeqNum, Message) as
-func seal(negFlags uint32, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) (sealedMessage []byte, sig *NtlmsspMessageSignature) {
+func seal(negFlags NegotiateFlags, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) (sealedMessage []byte, sig *NtlmsspMessageSignature) {
 	sealedMessage = rc4(handle, message)
 	sig = mac(negFlags, handle, signingKey, uint32(seqNum), message)
 	return
 }
 
 // Define SIGN(Handle, SigningKey, SeqNum, Message) as
-func sign(negFlags uint32, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) []byte {
+func sign(negFlags NegotiateFlags, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) []byte {
 	return concat(message, mac(negFlags, handle, signingKey, uint32(seqNum), message).Bytes())
 }
 
-func mac(negFlags uint32, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) (result *NtlmsspMessageSignature) {
+func mac(negFlags NegotiateFlags, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) (result *NtlmsspMessageSignature) {
 	if NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(negFlags) {
 		result = macWithExtendedSessionSecurity(negFlags, handle, signingKey, seqNum, message)
 	} else {
@@ -98,7 +98,7 @@ func macWithoutExtendedSessionSecurity(handle *rc4P.Cipher, seqNum uint32, messa
 // Set NTLMSSP_MESSAGE_SIGNATURE.SeqNum to SeqNum
 // Set SeqNum to SeqNum + 1
 // EndDefine
-func macWithExtendedSessionSecurity(negFlags uint32, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) *NtlmsspMessageSignature {
+func macWithExtendedSessionSecurity(negFlags NegotiateFlags, handle *rc4P.Cipher, signingKey []byte, seqNum uint32, message []byte) *NtlmsspMessageSignature {
 	sig := new(NtlmsspMessageSignature)
 	sig.Version = []byte{0x01, 0x00, 0x00, 0x00}
 	seqNumBytes := make([]byte, 4)

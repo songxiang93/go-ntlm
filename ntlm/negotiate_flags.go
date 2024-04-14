@@ -8,11 +8,13 @@ package ntlm
 
 import (
 	"bytes"
+        "encoding/binary"
 	"fmt"
 	"reflect"
 )
 
 type NegotiateFlag uint32
+type NegotiateFlags uint32
 
 const (
 	// A (1 bit): If set, requests Unicode character set encoding. An alternate name for this field is NTLMSSP_NEGOTIATE_UNICODE.
@@ -124,16 +126,16 @@ const (
 	NTLMSSP_NEGOTIATE_56
 )
 
-func (f NegotiateFlag) Set(flags uint32) uint32 {
-	return flags | uint32(f)
+func (f NegotiateFlag) Set(flags NegotiateFlags) NegotiateFlags {
+        return NegotiateFlags(flags.Uint32() | uint32(f))
 }
 
-func (f NegotiateFlag) IsSet(flags uint32) bool {
-	return (flags & uint32(f)) != 0
+func (f NegotiateFlag) IsSet(flags NegotiateFlags) bool {
+        return (flags.Uint32() & uint32(f)) != 0
 }
 
-func (f NegotiateFlag) Unset(flags uint32) uint32 {
-	return flags &^ uint32(f)
+func (f NegotiateFlag) Unset(flags NegotiateFlags) NegotiateFlags {
+        return NegotiateFlags(flags.Uint32() &^ uint32(f))
 }
 
 func (f NegotiateFlag) String() string {
@@ -168,7 +170,23 @@ func GetFlagName(flag NegotiateFlag) string {
 	return nameMap[flag]
 }
 
-func FlagsToString(flags uint32) string {
+func (f NegotiateFlags) Uint32() uint32 {
+        return uint32(f)
+}
+
+func (f NegotiateFlags) Bytes() []byte {
+        return uint32ToBytes(f.Uint32())
+}
+
+func ReadNegotiateFlags(bytes []byte) (NegotiateFlags) {
+        return NegotiateFlags(binary.LittleEndian.Uint32(bytes))
+}
+
+func (f NegotiateFlags) String() string {
+        return FlagsToString(f)
+}
+
+func FlagsToString(flags NegotiateFlags) string {
 	allFlags := [...]NegotiateFlag{
 		NTLMSSP_NEGOTIATE_56,
 		NTLMSSP_NEGOTIATE_KEY_EXCH,

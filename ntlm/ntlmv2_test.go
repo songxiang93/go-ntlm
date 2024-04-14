@@ -32,7 +32,7 @@ func TestNTOWFv2(t *testing.T) {
 }
 
 func TestNTLMv2(t *testing.T) {
-	flags := uint32(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)

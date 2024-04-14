@@ -154,7 +154,7 @@ func (n *V1Session) Sign(message []byte) ([]byte, error) {
 	return sig.Bytes(), nil
 }
 
-func ntlmV1Mac(message []byte, sequenceNumber int, handle *rc4P.Cipher, sealingKey, signingKey []byte, NegotiateFlags uint32) []byte {
+func ntlmV1Mac(message []byte, sequenceNumber int, handle *rc4P.Cipher, sealingKey, signingKey []byte, NegotiateFlags NegotiateFlags) []byte {
 	// TODO: Need to keep track of the sequence number for connection oriented NTLM
 	if NTLMSSP_NEGOTIATE_DATAGRAM.IsSet(NegotiateFlags) && NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.IsSet(NegotiateFlags) {
 		handle, _ = reinitSealingKey(sealingKey, sequenceNumber)
@@ -324,7 +324,7 @@ NTLMSSP_NEGOTIATE_UNICODE: true
 */
 
 func (n *V1ClientSession) GenerateNegotiateMessage() (nm *NegotiateMessage, err error) {
-	flags := uint32(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
@@ -358,7 +358,7 @@ func (n *V1ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 
 	// Set up the default flags for processing the response. These are the flags that we will return
 	// in the authenticate message
-	flags := uint32(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	// NOTE: Unsetting this flag in order to get the server to generate the signatures we can recognize
 	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)

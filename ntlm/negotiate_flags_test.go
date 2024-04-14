@@ -3,7 +3,6 @@
 package ntlm
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"testing"
 )
@@ -12,7 +11,7 @@ func TestFlags(t *testing.T) {
 	// Sample value from 4.2.2 NTLM v1 Authentication
 	bytes, _ := hex.DecodeString("338202e2")
 
-	flags := uint32(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
@@ -25,7 +24,7 @@ func TestFlags(t *testing.T) {
 	flags = NTLM_NEGOTIATE_OEM.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_UNICODE.Set(flags)
 
-	if flags != binary.LittleEndian.Uint32(bytes) {
+	if flags != ReadNegotiateFlags(bytes) {
 		t.Error("NTLM Flags are not correct")
 	}
 }
