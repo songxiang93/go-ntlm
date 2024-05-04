@@ -1,14 +1,16 @@
 # NTLM Implementation for Go
 
-This is a native implementation of NTLM for Go that was implemented using the Microsoft MS-NLMP documentation available at http://msdn.microsoft.com/en-us/library/cc236621.aspx.
-The library is currently in use and has been tested with connectionless NTLMv1 and v2 with and without extended session security.
+This is a native implementation of NTLM for Go that was implemented 
+ - using the [Microsoft MS-NLMP documentation](http://msdn.microsoft.com/en-us/library/cc236621.aspx)
+ - and [a comprehensive description of NTLM](https://davenport.sourceforge.net/ntlm.html) based on research by Eric Glass
 
-## Usage Notes
+## Project status
 
-Currently the implementation only supports connectionless (datagram) oriented NTLM. We did not need connection oriented NTLM for our usage
-and so it is not implemented. However it should be extremely straightforward to implement connection oriented NTLM as all
-the operations required are present in the library. The major missing piece is the negotiation of capabilities between
-the client and the server, for our use we hardcoded a supported set of negotiation flags.
+The library is used by multiple projects, e.g. [rdpgw](https://github.com/bolkedebruin/rdpgw) (a Remote Desktop Gateway server).
+
+The major missing piece is the negotiation of capabilities between the client and the server. Currently, the negotiation flags are hardcoded, which should be fine for most (modern) clients/servers.
+
+Currently, the project is in low maintenance mode. The NTLM protocol is being superseded by newer protocols, but is still required for good compatibility with existing client/server implementations. Feel free to submit an issue or a pull request, but new features are unlikely to be implemented without funding.
 
 ## Sample Usage as NTLM Client
 
@@ -58,5 +60,6 @@ signature, err := session.Mac([]byte(message), sequenceNumber)
 ```
 
 ## License
-Copyright Thomson Reuters Global Resources 2013
-Apache License
+Copyright Thomson Reuters Global Resources 2013 (BSD-4 License)
+
+_Note that the library was originally developed by Thomson Reuters Global Resources, but is no longer maintained by them._
