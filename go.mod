@@ -1,1 +1,1 @@
-module github.com/m7913d/go-ntlm
+module github.com/songxiang93/go-ntlm
