@@ -74,18 +74,18 @@ func ParseAuthenticateMessage(body []byte, ntlmVersion int) (*AuthenticateMessag
 	var err error
 
 	am.LmChallengeResponse, err = ReadBytePayload(12, body)
-	if err != nil {
-		return nil, err
-	}
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	if ntlmVersion == 2 {
 		am.LmV2Response, err = ReadLmV2Response(am.LmChallengeResponse.Payload)
 	} else {
 		am.LmV1Response, err = ReadLmV1Response(am.LmChallengeResponse.Payload)
 	}
-	if err != nil {
-		return nil, err
-	}
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	am.NtChallengeResponseFields, err = ReadBytePayload(20, body)
 	if err != nil {

@@ -84,7 +84,7 @@ func (n *V2Session) computeExpectedResponsesBase(timestamp []byte, avPairs *AvPa
 	return err
 }
 
-//If NTLM v2 is used, KeyExchangeKey MUST be set to the given 128-bit SessionBaseKey value.
+// If NTLM v2 is used, KeyExchangeKey MUST be set to the given 128-bit SessionBaseKey value.
 func (n *V2Session) computeKeyExchangeKey() (err error) {
 	n.keyExchangeKey = n.sessionBaseKey
 	return
@@ -107,7 +107,7 @@ func (n *V2Session) calculateKeys(ntlmRevisionCurrent uint8) (err error) {
 	return
 }
 
-//Seal returns the sealed message and signature
+// Seal returns the sealed message and signature
 func (n *V2Session) Seal(message []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
 	d, s := seal(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, n.sequenceNumber, message)
@@ -123,7 +123,7 @@ func (n *V2Session) UnSeal(message []byte) ([]byte, error) {
 	return dec, nil
 }
 
-//SealV2 takes a message to seal and a message to sign. Returns each seperately. This is a requirement for DCERP
+// SealV2 takes a message to seal and a message to sign. Returns each seperately. This is a requirement for DCERP
 func (n *V2Session) SealV2(messageToSeal []byte, messageToSign []byte) ([]byte, []byte, error) {
 	//for now we are just doing client stuff
 	sealedMessage := rc4(n.clientHandle, messageToSeal)
@@ -132,14 +132,14 @@ func (n *V2Session) SealV2(messageToSeal []byte, messageToSign []byte) ([]byte, 
 	return sealedMessage, signature, nil
 }
 
-//Sign returns the signing value of the message
+// Sign returns the signing value of the message
 func (n *V2Session) Sign(message []byte) ([]byte, error) {
 	sig := mac(n.NegotiateFlags, n.clientHandle, n.ClientSigningKey, uint32(n.sequenceNumber), message)
 	n.sequenceNumber++
 	return sig.Bytes(), nil
 }
 
-//Mildly ghetto that we expose this
+// Mildly ghetto that we expose this
 func NtlmVCommonMac(message []byte, sequenceNumber int, sealingKey, signingKey []byte, NegotiateFlags NegotiateFlags) []byte {
 	var handle *rc4P.Cipher
 	// TODO: Need to keep track of the sequence number for connection oriented NTLM
@@ -193,7 +193,7 @@ func (n *V2ClientSession) VerifyMac(message, expectedMac []byte, sequenceNumber 
 
 type V2ServerSession struct {
 	V2Session
-        ServerData
+	ServerData
 }
 
 func (n *V2ServerSession) SetServerChallenge(challenge []byte) {
@@ -211,10 +211,10 @@ func (n *V2ServerSession) GenerateChallengeMessage() (cm *ChallengeMessage, err 
 	cm.MessageType = uint32(2)
 	cm.TargetName, _ = CreateBytePayload(make([]byte, 0))
 
-        flags := NegotiateFlags(0)
+	flags := NegotiateFlags(0)
 	flags = NTLMSSP_NEGOTIATE_KEY_EXCH.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_VERSION.Set(flags)
-        flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_TARGET_INFO.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_IDENTIFY.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_ALWAYS_SIGN.Set(flags)
@@ -224,6 +224,27 @@ func (n *V2ServerSession) GenerateChallengeMessage() (cm *ChallengeMessage, err 
 	flags = NTLMSSP_REQUEST_TARGET.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_UNICODE.Set(flags)
 	flags = NTLMSSP_NEGOTIATE_128.Set(flags)
+
+	flags = NTLMSSP_NEGOTIATE_56.Set(flags)
+	flags = NTLMSSP_R1.Set(flags)
+	flags = NTLMSSP_R2.Set(flags)
+	flags = NTLMSSP_R3.Set(flags)
+	flags = NTLMSSP_R4.Set(flags)
+	flags = NTLMSSP_R5.Set(flags)
+	flags = NTLMSSP_R6.Set(flags)
+	flags = NTLMSSP_R7.Set(flags)
+	flags = NTLMSSP_R8.Set(flags)
+	flags = NTLMSSP_R9.Set(flags)
+	flags = NTLMSSP_R10.Set(flags)
+	flags = NTLMSSP_REQUEST_NON_NT_SESSION_KEY.Set(flags)
+	flags = NTLMSSP_TARGET_TYPE_SERVER.Set(flags)
+	flags = NTLMSSP_TARGET_TYPE_DOMAIN.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_OEM_WORKSTATION_SUPPLIED.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_OEM_DOMAIN_SUPPLIED.Set(flags)
+	flags = NTLMSSP_ANONYMOUS.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_LM_KEY.Set(flags)
+	flags = NTLMSSP_NEGOTIATE_SEAL.Set(flags)
+	flags = NTLM_NEGOTIATE_OEM.Set(flags)
 
 	cm.NegotiateFlags = flags
 
@@ -242,7 +263,7 @@ func (n *V2ServerSession) GenerateChallengeMessage() (cm *ChallengeMessage, err 
 	cm.TargetInfo = pairs
 
 	cm.Version = &VersionStruct{ProductMajorVersion: uint8(5), ProductMinorVersion: uint8(1), ProductBuild: uint16(2600), NTLMRevisionCurrent: uint8(15)}
-        n.challengeMessage = cm
+	n.challengeMessage = cm
 	return cm, nil
 }
 
@@ -271,9 +292,9 @@ func (n *V2ServerSession) ProcessAuthenticateMessage(am *AuthenticateMessage) (e
 	}
 
 	if !bytes.Equal(am.NtChallengeResponseFields.Payload, n.ntChallengeResponse) {
-                if n.requireNtHash || !bytes.Equal(am.LmChallengeResponse.Payload, n.lmChallengeResponse) {
+		if n.requireNtHash || !bytes.Equal(am.LmChallengeResponse.Payload, n.lmChallengeResponse) {
 			return errors.New("Could not authenticate")
-                }
+		}
 	}
 
 	err = n.computeKeyExchangeKey()
@@ -331,7 +352,7 @@ func (n *V2ServerSession) computeExportedSessionKey() (err error) {
 }
 
 func (n *V2ServerSession) computeExpectedResponses(timestamp []byte, avPairs *AvPairs) (err error) {
-        return n.computeExpectedResponsesBase(timestamp, avPairs)
+	return n.computeExpectedResponsesBase(timestamp, avPairs)
 }
 
 /*************
@@ -390,10 +411,10 @@ func (n *V2ClientSession) ProcessChallengeMessage(cm *ChallengeMessage) (err err
 
 	if n.mode == ConnectionOrientedMode {
 		//get current AvPairs
-                pairs := cm.TargetInfo
-                if err != nil {
-                        return err
-                }
+		pairs := cm.TargetInfo
+		if err != nil {
+			return err
+		}
 		//if TargetInfo has an MsvAvTimestamp present, the client SHOULD provide a MIC
 		if pairs.Find(MsvAvTimestamp) != nil {
 			if pl := pairs.Find(MsvAvFlags); pl != nil { //if MsAvFlags present, Value field, set bit 0x2 to 1
@@ -500,9 +521,9 @@ func (n *V2ClientSession) computeEncryptedSessionKey() (err error) {
 }
 
 func (n *V2Session) computeExpectedResponses(timestamp []byte, avPairs *AvPairs) (err error) {
-        err = n.computeExpectedResponsesBase(timestamp, avPairs)
-        //if MsvAvTimestamp is set, lmChallengeResponse should be Z(24)
-        v := avPairs
+	err = n.computeExpectedResponsesBase(timestamp, avPairs)
+	//if MsvAvTimestamp is set, lmChallengeResponse should be Z(24)
+	v := avPairs
 	if k := v.Find(MsvAvTimestamp); k != nil {
 		n.lmChallengeResponse = make([]byte, 24)
 	}
